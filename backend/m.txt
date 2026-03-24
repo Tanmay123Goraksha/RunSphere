@@ -1,0 +1,5 @@
+touch src/server.js
+touch src/app.js
+touch .env
+touch .gitignore
+touch README.md
