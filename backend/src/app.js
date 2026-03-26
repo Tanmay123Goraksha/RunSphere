@@ -10,5 +10,6 @@ app.use(express.json()); // Parses incoming JSON requests
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/runs', runRoutes);
 
 module.exports = app;

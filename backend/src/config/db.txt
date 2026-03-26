@@ -1,0 +1,20 @@
+CREATE DATABASE runsphere;
+
+-- Enable the extension to generate UUIDs
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Enable PostGIS now so it's ready for the maps feature later
+CREATE EXTENSION IF NOT EXISTS postgis; 
+
+-- Create the users table exactly as designed in your schema
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    avatar_url TEXT,
+    bio TEXT,
+    level INTEGER DEFAULT 1,
+    xp INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
