@@ -13,7 +13,7 @@ const pool = new Pool({
 const createTables = async () => {
   const queryText = `
     CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-    CREATE EXTENSION IF NOT EXISTS postgis;
+    CREATE EXTENSION IF NOT EXISTS "postgis";
 
     CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -27,28 +27,49 @@ const createTables = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS clubs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) UNIQUE NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS runs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        club_id UUID,
+        club_id UUID REFERENCES clubs(id) ON DELETE SET NULL,
         distance_km NUMERIC DEFAULT 0,
         duration_seconds INTEGER DEFAULT 0,
         avg_pace NUMERIC,
         calories INTEGER,
-        visibility VARCHAR(50) DEFAULT 'public',
+        is_valid BOOLEAN DEFAULT TRUE,
         started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         ended_at TIMESTAMP,
+        route GEOMETRY(LineString, 4326),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS territories (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        owner_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        club_id UUID REFERENCES clubs(id) ON DELETE SET NULL,
+        run_id UUID REFERENCES runs(id) ON DELETE SET NULL,
+        boundary GEOMETRY(Polygon, 4326) NOT NULL,
+        area_sqm NUMERIC NOT NULL,
+        capture_time_seconds INTEGER NOT NULL,
+        captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS run_points (
         id BIGSERIAL PRIMARY KEY,
         run_id UUID REFERENCES runs(id) ON DELETE CASCADE,
-        geom GEOMETRY(Point, 4326) NOT NULL,
+        location GEOMETRY(Point, 4326) NOT NULL,
+        step_count_delta INTEGER DEFAULT 0,
         recorded_at TIMESTAMP NOT NULL
     );
 
-    CREATE INDEX IF NOT EXISTS run_points_geom_idx ON run_points USING GIST (geom);
+    CREATE INDEX IF NOT EXISTS run_points_location_idx ON run_points USING GIST (location);
+    CREATE INDEX IF NOT EXISTS territories_boundary_idx ON territories USING GIST (boundary);
 
     CREATE TABLE IF NOT EXISTS areas (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

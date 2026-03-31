@@ -1,0 +1,112 @@
+RunSphere: Project Overview and 
+Implementation Plan 
+1. Project Overview 
+RunSphere is a fitness and wellness application that gamifies running by integrating real-world 
+GPS tracking with territory capture mechanics. When users complete a running loop, the 
+enclosed area is captured as a personal zone, which can later be challenged and overtaken by 
+other runners with better performance. 
+The application combines fitness tracking, game mechanics, and AI-based insights to 
+motivate users to stay physically active while fostering social interaction through clubs, 
+challenges, and competitive gameplay. The goal is to promote preventive healthcare, mental 
+well-being, and consistent physical activity using modern mobile and web technologies . 
+2. System Implementation Overview 
+The implementation of RunSphere is divided into four major layers: 
+1. Mobile Application (Frontend) 
+2. Location & Sensor Processing 
+3. Backend & Real-Time Services 
+4. Data Storage, Analytics, and AI Layer 
+Each layer is designed to be modular, scalable, and suitable for future enhancements. 
+3. Implementation Details 
+3.1 Mobile Application (Frontend)  
+The mobile application will be built using React Native, allowing cross-platform development for 
+both Android and iOS. The app handles user interaction, live run tracking, map visualization, 
+and real-time feedback. 
+Key responsibilities: 
+● Display live maps and captured territories 
+● Track running routes 
+● Show leaderboards, clubs, and challenges 
+● Provide visual feedback and gamification elements 
+Map visualization and territory drawing are implemented using react-native-maps (Google 
+Maps), while live GPS data is fetched using react-native-geolocation-service. 
+3.2 Location and Sensor Processing 
+Accurate run tracking is critical for fairness and health insights. RunSphere uses a hybrid 
+tracking approach: 
+● GPS for distance and route tracking 
+● Accelerometer for step detection and cadence 
+Data Collection Flow: 
+1. Fetch GPS coordinates every 1–2 seconds 
+2. Read accelerometer values (x, y, z) 
+3. Detect steps using magnitude-based threshold detection 
+4. Calculate distance using the Haversine formula 
+5. Filter GPS noise using step validation 
+If GPS shows movement but no steps are detected, the data point is discarded as noise. This 
+approach significantly improves accuracy compared to GPS-only tracking . 
+3.3 Territory Detection Logic 
+Once a run is completed: 
+● The GPS trail is analyzed to detect closed loops 
+● The enclosed polygon area is calculated 
+● The territory is stored with: 
+○ Area size 
+○ Time taken 
+○ User or club ownership 
+If another user completes the same loop faster, ownership of the territory is transferred. This 
+logic forms the core competitive mechanic of RunSphere. 
+3.4 Backend and Real-Time Communication 
+The backend is implemented using NestJS (Node.js), which provides a structured and scalable 
+server-side architecture. 
+Backend responsibilities: 
+● User authentication and profile management 
+● Run data processing and storage 
+● Territory ownership logic 
+● Leaderboards and club rankings 
+● Cheat detection and validation 
+WebSockets are used for: 
+● Live run updates 
+● Real-time leaderboards 
+● Club activity and presence updates . 
+3.5 Data Storage and State Management 
+● PostgreSQL 
+Stores users, runs, territories, clubs, and historical data. 
+● Redis 
+Handles real-time state such as: 
+○ User presence 
+○ Active runs 
+○ Live competition data 
+Offline GPS caching ensures runs are not lost during poor network connectivity. 
+4. AI and Analytics Process 
+AI and ML components are introduced in phases: 
+1. Performance Analytics 
+○ Pace trends 
+○ Cadence consistency 
+○ Stamina analysis 
+2. Smart Route Suggestions 
+○ Identify uncaptured or low-competition routes nearby 
+○ Adjust suggestions based on fitness level 
+3. Dynamic Difficulty Adjustment 
+○ Easier challenges for inactive users 
+○ Advanced challenges for consistent performers 
+4. Cheat Detection 
+○ Detect unrealistic speeds 
+○ Identify GPS jumps without step confirmation . 
+5. Technology Stack 
+Frontend (Mobile) 
+● React Native 
+● react-native-maps (Google Maps) 
+● react-native-geolocation-service 
+● react-native-sensors 
+Backend 
+● NestJS (Node.js) 
+● WebSockets 
+Database & State 
+● PostgreSQL 
+● Redis 
+Infrastructure 
+● Docker 
+● AWS / GCP 
+● Cloudflare (CDN) 
+6. Development Process 
+1. Phase 1: Core running and GPS tracking 
+2. Phase 2: Territory detection and leaderboards 
+3. Phase 3: Clubs, challenges, and events 
+4. Phase 4: AI analytics and health insights 
+5. Phase 5: Optimization, cheat detection, and scaling
