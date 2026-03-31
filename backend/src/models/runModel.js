@@ -41,4 +41,58 @@ const endRun = async (runId, distanceKm, durationSeconds) => {
   return result.rows[0];
 };
 
-module.exports = { createRun, addRunPoints, endRun };
+// This function checks if a run forms a closed loop and creates a polygon
+const detectAndCreateZone = async (runId, userId) => {
+  const query = `
+    WITH run_line AS (
+      -- Step 1: Create a line from the run points
+      SELECT ST_MakeLine(geom ORDER BY recorded_at) AS path
+      FROM run_points
+      WHERE run_id = $1
+    ),
+    endpoints AS (
+      -- Step 2: Get the start and end points of the run
+      SELECT 
+        ST_StartPoint(path) AS start_pt,
+        ST_EndPoint(path) AS end_pt,
+        path
+      FROM run_line
+    )
+    -- Step 3: If start and end are within 50 meters, make a polygon
+    SELECT 
+      CASE 
+        WHEN ST_DistanceSphere(start_pt, end_pt) < 50 THEN 
+          -- Close the loop perfectly and turn it into a solid polygon
+          ST_MakePolygon(ST_AddPoint(path, start_pt)) 
+        ELSE NULL 
+      END AS new_zone
+    FROM endpoints;
+  `;
+
+  const result = await db.query(query, [runId]);
+  const newZone = result.rows[0]?.new_zone;
+
+  // If a loop was detected, insert it into the areas table
+  if (newZone) {
+    const insertAreaQuery = `
+      INSERT INTO areas (name, geo_polygon) 
+      VALUES ($1, $2) RETURNING id
+    `;
+    // We can auto-name it or let the user name it later
+    const areaResult = await db.query(insertAreaQuery, ['New Captured Zone', newZone]);
+    const areaId = areaResult.rows[0].id;
+
+    // Log the capture!
+    await db.query(
+      'INSERT INTO area_capture_logs (area_id, captured_by) VALUES ($1, $2)',
+      [areaId, userId]
+    );
+
+    return { success: true, areaId: areaId, message: "Zone captured!" };
+  }
+
+  return { success: false, message: "Run did not form a closed loop." };
+};
+
+// Don't forget to export it!
+module.exports = { createRun, addRunPoints, endRun, detectAndCreateZone };

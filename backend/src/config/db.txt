@@ -1,3 +1,8 @@
+DB chalane ke liye 
+npm db:init karo, agar nahi chala toh package.json gpt mei paste karke db:init chalane bolo,
+stack builder se postgres mei postgis ka extension download karna padega pehle, documentation se dekho varna gpt karo
+//
+
 CREATE DATABASE runsphere;
 
 -- Enable the extension to generate UUIDs

@@ -33,17 +33,29 @@ const syncPoints = async (req, res) => {
   }
 };
 
+
 const finishRun = async (req, res) => {
   const { runId } = req.params;
   const { distanceKm, durationSeconds } = req.body;
+  const userId = req.user.id; // Get the user ID from the auth token!
 
   try {
+    // 1. End the run and update stats
     const endedRun = await Run.endRun(runId, distanceKm, durationSeconds);
-    res.status(200).json({ message: 'Run finished', run: endedRun });
+
+    // 2. The Magic: Check if they captured a zone!
+    const captureResult = await Run.detectAndCreateZone(runId, userId);
+
+    res.status(200).json({ 
+      message: 'Run finished successfully', 
+      run: endedRun,
+      territory: captureResult // Send the result back to the mobile app
+    });
   } catch (error) {
     console.error('Error finishing run:', error.message);
     res.status(500).json({ error: 'Failed to finish run' });
   }
 };
+
 
 module.exports = { startRun, syncPoints, finishRun };

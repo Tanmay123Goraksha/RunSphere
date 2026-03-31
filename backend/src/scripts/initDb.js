@@ -10,8 +10,9 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
-const createTables = async () => { `
-  const queryText = CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+const createTables = async () => {
+  const queryText = `
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
     CREATE EXTENSION IF NOT EXISTS postgis;
 
     CREATE TABLE IF NOT EXISTS users (
@@ -29,7 +30,7 @@ const createTables = async () => { `
     CREATE TABLE IF NOT EXISTS runs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        club_id UUID, -- Optional for now, referencing clubs later
+        club_id UUID,
         distance_km NUMERIC DEFAULT 0,
         duration_seconds INTEGER DEFAULT 0,
         avg_pace NUMERIC,
@@ -43,18 +44,34 @@ const createTables = async () => { `
     CREATE TABLE IF NOT EXISTS run_points (
         id BIGSERIAL PRIMARY KEY,
         run_id UUID REFERENCES runs(id) ON DELETE CASCADE,
-        geom GEOMETRY(Point, 4326) NOT NULL, -- PostGIS spatial column
+        geom GEOMETRY(Point, 4326) NOT NULL,
         recorded_at TIMESTAMP NOT NULL
     );
 
-    -- Create a spatial index for lightning-fast map queries
     CREATE INDEX IF NOT EXISTS run_points_geom_idx ON run_points USING GIST (geom);
-  `
+
+    CREATE TABLE IF NOT EXISTS areas (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255),
+        geo_polygon GEOMETRY(Polygon, 4326) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS areas_polygon_idx ON areas USING GIST (geo_polygon);
+
+    CREATE TABLE IF NOT EXISTS area_capture_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        area_id UUID REFERENCES areas(id) ON DELETE CASCADE,
+        captured_by UUID REFERENCES users(id) ON DELETE CASCADE,
+        club_id UUID,
+        captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
 
   try {
     console.log('⏳ Creating tables...');
     await pool.query(queryText);
-    console.log('✅ Users table created successfully!');
+    console.log('✅ All tables created successfully!');
   } catch (err) {
     console.error('❌ Error creating tables:', err.stack);
   } finally {
