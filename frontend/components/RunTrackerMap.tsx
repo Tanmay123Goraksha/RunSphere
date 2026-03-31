@@ -17,6 +17,31 @@ const getDistanceFromLatLonInMeters = (lat1: number, lon1: number, lat2: number,
     return R * c;
 };
 
+// Calculate approximate enclosed area of a polygon representing geographic coordinates
+const calculatePolygonArea = (locations: { latitude: number, longitude: number }[]) => {
+    if (locations.length < 3) return 0;
+    const R = 6378137; // Earth's radius in meters
+
+    // Convert geographic coordinates to flat Cartesian meters based on first point
+    const refLat = locations[0].latitude;
+    const refLon = locations[0].longitude;
+
+    const points = locations.map(loc => {
+        const x = (loc.longitude - refLon) * (Math.PI / 180) * R * Math.cos(refLat * (Math.PI / 180));
+        const y = (loc.latitude - refLat) * (Math.PI / 180) * R;
+        return { x, y };
+    });
+
+    // Standard Shoelace formula for polygon area
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+        const j = (i + 1) % points.length;
+        area += points[i].x * points[j].y - points[j].x * points[i].y;
+    }
+
+    return Math.abs(area / 2);
+};
+
 export default function RunTrackerMap() {
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
     const [route, setRoute] = useState<{ latitude: number; longitude: number }[]>([]);
@@ -105,7 +130,13 @@ export default function RunTrackerMap() {
                 );
 
                 if (distance < 75) { // Forgiving radius for street intersections 
-                    Alert.alert("Territory Captured!", "You successfully created a closed loop on real streets!");
+                    const areaSqMeters = calculatePolygonArea(route);
+                    const pointsEarned = Math.floor(areaSqMeters / 100); // e.g. 1 point per 100 sqm
+
+                    Alert.alert(
+                        "Territory Captured!",
+                        `You enclosed ${Math.round(areaSqMeters)} sq meters and earned ${pointsEarned} XP!`
+                    );
                     setTerritories((prev) => [...prev, route]); // Save as a shaded region
                 } else {
                     Alert.alert("Run Finished", `But no loop was detected. You were ${Math.round(distance)}m away from your start point.`);
