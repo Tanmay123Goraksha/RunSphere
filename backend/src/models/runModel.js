@@ -9,6 +9,14 @@ const createRun = async (userId) => {
   return result.rows[0];
 };
 
+const validateRunOwnership = async (runId, userId) => {
+  const result = await db.query(
+    'SELECT id FROM runs WHERE id = $1 AND user_id = $2',
+    [runId, userId]
+  );
+  return result.rowCount > 0;
+};
+
 // Bulk insert an array of GPS points
 const addRunPoints = async (runId, points) => {
   // Extract data into parallel arrays for the bulk insert
@@ -31,14 +39,54 @@ const addRunPoints = async (runId, points) => {
 };
 
 // Optional: Finish the run and calculate totals
-const endRun = async (runId, distanceKm, durationSeconds) => {
+const endRun = async (runId, distanceKm, durationSeconds, avgPace) => {
   const result = await db.query(
     `UPDATE runs 
-     SET ended_at = CURRENT_TIMESTAMP, distance_km = $2, duration_seconds = $3 
+     SET ended_at = CURRENT_TIMESTAMP, distance_km = $2, duration_seconds = $3, avg_pace = $4 
      WHERE id = $1 RETURNING *`,
-    [runId, distanceKm, durationSeconds]
+    [runId, distanceKm, durationSeconds, avgPace]
   );
   return result.rows[0];
+};
+
+const getRunsForUser = async (userId) => {
+  const result = await db.query(
+    `SELECT id, user_id, distance_km, duration_seconds, avg_pace, started_at, ended_at, created_at
+     FROM runs
+     WHERE user_id = $1
+     ORDER BY started_at DESC`,
+    [userId]
+  );
+  return result.rows;
+};
+
+const getRunByIdForUser = async (runId, userId) => {
+  const runResult = await db.query(
+    `SELECT id, user_id, distance_km, duration_seconds, avg_pace, started_at, ended_at, created_at
+     FROM runs
+     WHERE id = $1 AND user_id = $2`,
+    [runId, userId]
+  );
+
+  if (runResult.rowCount === 0) {
+    return null;
+  }
+
+  const pointsResult = await db.query(
+    `SELECT
+      ST_Y(geom) AS latitude,
+      ST_X(geom) AS longitude,
+      recorded_at
+     FROM run_points
+     WHERE run_id = $1
+     ORDER BY recorded_at ASC`,
+    [runId]
+  );
+
+  return {
+    ...runResult.rows[0],
+    points: pointsResult.rows,
+  };
 };
 
 // This function checks if a run forms a closed loop and creates a polygon
@@ -95,4 +143,12 @@ const detectAndCreateZone = async (runId, userId) => {
 };
 
 // Don't forget to export it!
-module.exports = { createRun, addRunPoints, endRun, detectAndCreateZone };
+module.exports = {
+  createRun,
+  validateRunOwnership,
+  addRunPoints,
+  endRun,
+  getRunsForUser,
+  getRunByIdForUser,
+  detectAndCreateZone,
+};

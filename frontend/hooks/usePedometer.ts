@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Pedometer } from 'expo-sensors';
 
-export const usePedometer = (isTracking: boolean) => {
+export const usePedometer = (isTracking: boolean, elapsedSeconds = 0) => {
     const [isPedometerAvailable, setIsPedometerAvailable] = useState('checking');
     const [currentStepCount, setCurrentStepCount] = useState(0);
 
@@ -36,5 +36,7 @@ export const usePedometer = (isTracking: boolean) => {
         };
     }, [isTracking]);
 
-    return { isPedometerAvailable, currentStepCount, setCurrentStepCount };
+    const cadenceSpm = elapsedSeconds > 0 ? (currentStepCount / elapsedSeconds) * 60 : 0;
+
+    return { isPedometerAvailable, currentStepCount, cadenceSpm, setCurrentStepCount };
 };

@@ -1,40 +1,79 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Text, Button, Alert } from 'react-native';
-import MapView, { Polyline, Polygon } from 'react-native-maps';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import MapView, { Polygon, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { usePedometer } from '../hooks/usePedometer';
 
-// Haversine formula to calculate distance between two lat/long points in meters
+import { usePedometer } from '../hooks/usePedometer';
+import { fetchRunByIdApi, finishRunApi, startRunApi, syncRunPointsApi } from '@/services/runApi';
+import {
+    clearStoredActiveRun,
+    enqueuePoints,
+    flushQueuedPoints,
+    getStoredActiveRun,
+    RunPoint,
+    storeActiveRun,
+    upsertLocalRun,
+} from '@/services/runStorage';
+
+type LatLng = { latitude: number; longitude: number };
+
+const toIsoTime = (timestamp?: number) => new Date(timestamp ?? Date.now()).toISOString();
+
+const GIRGAON_CENTER: LatLng = { latitude: 18.9544, longitude: 72.8126 };
+const SIMULATED_STEP_INTERVAL_MS = 1000;
+const SIMULATED_STEP_DISTANCE_METERS = 20;
+
+const toLatLng = (x: number, y: number, refLatitude: number, refLongitude: number) => {
+    const R = 6378137;
+    const latitude = refLatitude + (y / R) * (180 / Math.PI);
+    const longitude = refLongitude + (x / (R * Math.cos(refLatitude * (Math.PI / 180)))) * (180 / Math.PI);
+    return { latitude, longitude };
+};
+
+const buildSimulatedRoute = (center: LatLng): LatLng[] => {
+    const radiusMeters = 120;
+    const segmentCount = 36;
+    const routePoints: LatLng[] = [];
+
+    for (let index = 0; index <= segmentCount; index += 1) {
+        const angle = (index / segmentCount) * Math.PI * 2;
+        const x = Math.cos(angle) * radiusMeters;
+        const y = Math.sin(angle) * radiusMeters;
+        routePoints.push(toLatLng(x, y, center.latitude, center.longitude));
+    }
+
+    return routePoints;
+};
+
 const getDistanceFromLatLonInMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371e3; // Radius of the earth in meters
+    const R = 6371e3;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
     const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 };
 
-// Calculate approximate enclosed area of a polygon representing geographic coordinates
-const calculatePolygonArea = (locations: { latitude: number, longitude: number }[]) => {
+const calculatePolygonArea = (locations: LatLng[]) => {
     if (locations.length < 3) return 0;
-    const R = 6378137; // Earth's radius in meters
 
-    // Convert geographic coordinates to flat Cartesian meters based on first point
+    const R = 6378137;
     const refLat = locations[0].latitude;
     const refLon = locations[0].longitude;
 
-    const points = locations.map(loc => {
+    const points = locations.map((loc) => {
         const x = (loc.longitude - refLon) * (Math.PI / 180) * R * Math.cos(refLat * (Math.PI / 180));
         const y = (loc.latitude - refLat) * (Math.PI / 180) * R;
         return { x, y };
     });
 
-    // Standard Shoelace formula for polygon area
     let area = 0;
-    for (let i = 0; i < points.length; i++) {
+    for (let i = 0; i < points.length; i += 1) {
         const j = (i + 1) % points.length;
         area += points[i].x * points[j].y - points[j].x * points[i].y;
     }
@@ -43,170 +82,436 @@ const calculatePolygonArea = (locations: { latitude: number, longitude: number }
 };
 
 export default function RunTrackerMap() {
+    const mapRef = useRef<MapView | null>(null);
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
-    const [route, setRoute] = useState<{ latitude: number; longitude: number }[]>([]);
-    const [territories, setTerritories] = useState<{ latitude: number; longitude: number }[][]>([]);
-
+    const [route, setRoute] = useState<LatLng[]>([]);
+    const [routePoints, setRoutePoints] = useState<RunPoint[]>([]);
+    const [territories, setTerritories] = useState<LatLng[][]>([]);
     const [isTracking, setIsTracking] = useState(false);
     const [subscription, setSubscription] = useState<Location.LocationSubscription | null>(null);
+    const [runId, setRunId] = useState<string | null>(null);
+    const [runStartedAt, setRunStartedAt] = useState<string | null>(null);
+    const [distanceMeters, setDistanceMeters] = useState(0);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [gpsHealthy, setGpsHealthy] = useState(true);
+    const [simulateRun, setSimulateRun] = useState(false);
 
-    const { currentStepCount, isPedometerAvailable } = usePedometer(isTracking);
-    const currentStepCountRef = useRef(0);
-    const lastStepCount = useRef(0);
+    const routeRef = useRef<LatLng[]>([]);
+    const routePointsRef = useRef<RunPoint[]>([]);
+    const lastAcceptedAtRef = useRef<number>(0);
+    const lastStepCountRef = useRef(0);
+    const unsyncedPointsRef = useRef<RunPoint[]>([]);
+    const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const simulationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const { currentStepCount, cadenceSpm, setCurrentStepCount } = usePedometer(isTracking && !simulateRun, elapsedSeconds);
+
+    const focusMap = (point: LatLng, animated = true) => {
+        mapRef.current?.animateToRegion(
+            {
+                latitude: point.latitude,
+                longitude: point.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+            },
+            animated ? 450 : 0
+        );
+    };
+
+    const paceMinPerKm = useMemo(() => {
+        if (distanceMeters <= 0 || elapsedSeconds <= 0) return 0;
+        const distanceKm = distanceMeters / 1000;
+        return (elapsedSeconds / 60) / distanceKm;
+    }, [distanceMeters, elapsedSeconds]);
 
     useEffect(() => {
-        currentStepCountRef.current = currentStepCount;
-    }, [currentStepCount]);
-
-    // --- MOCK DATA FOR EMULATOR TESTING (REAL STREETS IN GIRGAON) ---
-    const MOCK_ROUTE = [
-        { latitude: 18.9534, longitude: 72.8202 }, // Start on Charni Road East
-        { latitude: 18.9535, longitude: 72.8220 }, // Move East towards intersection
-        { latitude: 18.9525, longitude: 72.8222 }, // Move South down cross street
-        { latitude: 18.9515, longitude: 72.8223 }, // Further South
-        { latitude: 18.9514, longitude: 72.8205 }, // Move West
-        { latitude: 18.9525, longitude: 72.8203 }, // Move North up parallel street
-        { latitude: 18.9533, longitude: 72.8202 }, // Close the loop precisely near start
-    ];
-
-    const isMockingEnabled = true; // Toggle this to false for real physical devices
+        routeRef.current = route;
+    }, [route]);
 
     useEffect(() => {
-        (async () => {
-            try {
-                let { status } = await Location.requestForegroundPermissionsAsync();
-                if (status !== 'granted') {
-                    console.error('Permission to access location was denied');
-                    return;
-                }
+        routePointsRef.current = routePoints;
+    }, [routePoints]);
 
-                if (isMockingEnabled) {
-                    // Force the map to center on our mock starting point
-                    setLocation({
-                        coords: {
-                            ...MOCK_ROUTE[0],
-                            altitude: 0, accuracy: 5, altitudeAccuracy: 5, heading: 0, speed: 0
-                        },
-                        timestamp: Date.now()
-                    });
-                    return;
-                }
-
-                // Use getLastKnownPositionAsync first, it's faster and less likely to throw on emulators
-                let initialLocation = await Location.getLastKnownPositionAsync({});
-
-                if (!initialLocation) {
-                    // Try getting current position, but don't require high accuracy immediately on boot
-                    initialLocation = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
-                    });
-                }
-                setLocation(initialLocation);
-            } catch (error) {
-                console.error("Error getting initial location:", error);
-                // Fallback location or handle gracefully
-            }
-        })();
-    }, []);
-
-    const toggleTracking = async () => {
-        if (isTracking) {
-            // STOP tracking
-            if (subscription) {
-                subscription.remove();
-                setSubscription(null);
-            }
-            setIsTracking(false);
-
-            // Territory Capture Logic: Did they run in a loop?
-            if (route.length > 3) { // Ensure minimum distance/points
-                const startPoint = route[0];
-                const endPoint = route[route.length - 1];
-
-                // If they ended within 50 meters of their start point, it's a loop!
-                const distance = getDistanceFromLatLonInMeters(
-                    startPoint.latitude, startPoint.longitude,
-                    endPoint.latitude, endPoint.longitude
-                );
-
-                if (distance < 75) { // Forgiving radius for street intersections 
-                    const areaSqMeters = calculatePolygonArea(route);
-                    const pointsEarned = Math.floor(areaSqMeters / 100); // e.g. 1 point per 100 sqm
-
-                    Alert.alert(
-                        "Territory Captured!",
-                        `You enclosed ${Math.round(areaSqMeters)} sq meters and earned ${pointsEarned} XP!`
-                    );
-                    setTerritories((prev) => [...prev, route]); // Save as a shaded region
-                } else {
-                    Alert.alert("Run Finished", `But no loop was detected. You were ${Math.round(distance)}m away from your start point.`);
-                }
-            }
-        } else {
-            // START tracking
-            setRoute([]); // Clear old line
-            setIsTracking(true);
-
-            if (isMockingEnabled) {
-                // --- EMULATOR MOCK RUN (REAL STREETS) ---
-                let step = 0;
-                setRoute([MOCK_ROUTE[0]]); // Start immediately at point 0
-
-                const mockInterval = setInterval(() => {
-                    step++;
-
-                    if (step < MOCK_ROUTE.length) {
-                        const newPoint = MOCK_ROUTE[step];
-                        setRoute(currentRoute => [...currentRoute, newPoint]);
-
-                        // Also physically move the blue user dot camera to simulate running there
-                        setLocation({
-                            coords: {
-                                ...newPoint,
-                                altitude: 0, accuracy: 5, altitudeAccuracy: 5, heading: 0, speed: 2
-                            },
-                            timestamp: Date.now()
-                        });
-                    }
-
-                    if (step >= MOCK_ROUTE.length - 1) {
-                        clearInterval(mockInterval);
-                        // Do not auto-stop. Let the user see the full route and press 'STOP' 
-                        // themselves to trigger the accurate distance logic and coloring!
-                    }
-                }, 1500); // Wait 1.5 seconds between street coordinate nodes
-
-                // Store the interval ID as if it was a subscription so it can be cleared
-                setSubscription({ remove: () => clearInterval(mockInterval) } as any);
+    useEffect(() => {
+        const setup = async () => {
+            const fg = await Location.requestForegroundPermissionsAsync();
+            if (fg.status !== 'granted') {
+                Alert.alert('Location required', 'Please grant location access to track runs.');
                 return;
             }
 
-            // --- REAL DEVICE GPS TRACKING ---
-            const sub = await Location.watchPositionAsync(
-                {
-                    accuracy: Location.Accuracy.BestForNavigation,
-                    timeInterval: 2000,
-                    distanceInterval: 1,
+            await Location.requestBackgroundPermissionsAsync();
+
+            const initialLocation =
+                (await Location.getLastKnownPositionAsync({})) ||
+                (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+
+            if (initialLocation) {
+                setLocation(initialLocation);
+            }
+
+            const persisted = await getStoredActiveRun();
+            if (persisted) {
+                setRunId(persisted.runId);
+                setRunStartedAt(persisted.startedAt);
+                setRoute(persisted.route);
+                setDistanceMeters(persisted.distanceMeters);
+                setGpsHealthy(false);
+            }
+        };
+
+        setup().catch(() => {
+            Alert.alert('Error', 'Unable to initialize location services.');
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!simulateRun || isTracking) return;
+
+        const simulatedLocation: Location.LocationObject = {
+            coords: {
+                latitude: GIRGAON_CENTER.latitude,
+                longitude: GIRGAON_CENTER.longitude,
+                altitude: null,
+                accuracy: 5,
+                altitudeAccuracy: null,
+                heading: 0,
+                speed: 0,
+            },
+            timestamp: Date.now(),
+        };
+
+        setLocation(simulatedLocation);
+        focusMap(GIRGAON_CENTER, true);
+    }, [simulateRun, isTracking]);
+
+    useEffect(() => {
+        if (!isTracking) {
+            if (tickTimerRef.current) clearInterval(tickTimerRef.current);
+            tickTimerRef.current = null;
+            return;
+        }
+
+        tickTimerRef.current = setInterval(() => {
+            if (!runStartedAt) return;
+            const next = Math.max(0, Math.floor((Date.now() - new Date(runStartedAt).getTime()) / 1000));
+            setElapsedSeconds(next);
+
+            if (lastAcceptedAtRef.current > 0) {
+                const age = Date.now() - lastAcceptedAtRef.current;
+                setGpsHealthy(age < 15000);
+            }
+        }, 1000);
+
+        return () => {
+            if (tickTimerRef.current) clearInterval(tickTimerRef.current);
+            tickTimerRef.current = null;
+        };
+    }, [isTracking, runStartedAt]);
+
+    const safeSync = async (activeRunId: string) => {
+        if (unsyncedPointsRef.current.length > 0) {
+            const payload = [...unsyncedPointsRef.current];
+            unsyncedPointsRef.current = [];
+
+            try {
+                await syncRunPointsApi(activeRunId, payload);
+            } catch {
+                await enqueuePoints(activeRunId, payload);
+            }
+        }
+
+        try {
+            await flushQueuedPoints(activeRunId, syncRunPointsApi);
+        } catch {
+            // No-op; queue is preserved for next retry.
+        }
+    };
+
+    const appendPoint = async (loc: Location.LocationObject) => {
+        const lat = loc.coords.latitude;
+        const lon = loc.coords.longitude;
+        const prev = routeRef.current[routeRef.current.length - 1];
+
+        const currentPoint = { latitude: lat, longitude: lon };
+        let incrementMeters = 0;
+
+        if (prev) {
+            const distance = getDistanceFromLatLonInMeters(prev.latitude, prev.longitude, lat, lon);
+            const sinceLast = lastAcceptedAtRef.current > 0 ? (Date.now() - lastAcceptedAtRef.current) / 1000 : 1;
+            const speedMps = sinceLast > 0 ? distance / sinceLast : 0;
+            const stepDelta = Math.max(0, currentStepCount - lastStepCountRef.current);
+            const accuracy = loc.coords.accuracy ?? 999;
+
+            const tooNoisy = accuracy > 35 || distance > 120 || speedMps > 8;
+            const allowFallbackWithoutStep = sinceLast > 10;
+
+            if (tooNoisy && stepDelta === 0 && !allowFallbackWithoutStep) {
+                return;
+            }
+
+            if (distance < 2) {
+                return;
+            }
+
+            incrementMeters = distance;
+        }
+
+        const pointRecord: RunPoint = {
+            latitude: lat,
+            longitude: lon,
+            recorded_at: toIsoTime(loc.timestamp),
+        };
+
+        setRoute((prevRoute) => [...prevRoute, currentPoint]);
+        setRoutePoints((prevPoints) => [...prevPoints, pointRecord]);
+        setDistanceMeters((prevDistance) => prevDistance + incrementMeters);
+
+        unsyncedPointsRef.current = [...unsyncedPointsRef.current, pointRecord];
+        lastStepCountRef.current = currentStepCount;
+        lastAcceptedAtRef.current = Date.now();
+
+        if (runId && runStartedAt) {
+            const nextRoute = [...routeRef.current, currentPoint];
+            await storeActiveRun({
+                runId,
+                startedAt: runStartedAt,
+                route: nextRoute,
+                distanceMeters: distanceMeters + incrementMeters,
+            });
+        }
+    };
+
+    const beginLiveLocationStream = async () => {
+        const sub = await Location.watchPositionAsync(
+            {
+                accuracy: Location.Accuracy.BestForNavigation,
+                timeInterval: 2000,
+                distanceInterval: 1,
+            },
+            (loc) => {
+                setLocation(loc);
+                appendPoint(loc).catch(() => {
+                    // No-op: point append failures should not crash live tracking.
+                });
+            }
+        );
+
+        setSubscription(sub);
+    };
+
+    const beginSimulatedLocationStream = async () => {
+        const start = GIRGAON_CENTER;
+
+        const simulatedRoute = buildSimulatedRoute(start);
+        let routeIndex = 0;
+        let stepCounter = 0;
+
+        if (simulationTimerRef.current) {
+            clearInterval(simulationTimerRef.current);
+        }
+
+        focusMap(start, false);
+
+        simulationTimerRef.current = setInterval(() => {
+            const nextPoint = simulatedRoute[routeIndex % simulatedRoute.length];
+            routeIndex += 1;
+
+            stepCounter += Math.max(1, Math.round(SIMULATED_STEP_DISTANCE_METERS / 0.75));
+            setCurrentStepCount(stepCounter);
+
+            const simulatedLocation: Location.LocationObject = {
+                coords: {
+                    latitude: nextPoint.latitude,
+                    longitude: nextPoint.longitude,
+                    altitude: null,
+                    accuracy: 5,
+                    altitudeAccuracy: null,
+                    heading: 0,
+                    speed: SIMULATED_STEP_DISTANCE_METERS / (SIMULATED_STEP_INTERVAL_MS / 1000),
                 },
-                (loc) => {
-                    setLocation(loc);
+                timestamp: Date.now(),
+            };
 
-                    // GPS + Step Fusion Logic: Filter Noise
-                    const latestSteps = currentStepCountRef.current;
-                    const stepsTaken = latestSteps - lastStepCount.current;
+            setLocation(simulatedLocation);
+            focusMap(nextPoint, true);
+            appendPoint(simulatedLocation).catch(() => {
+                // No-op: simulation should continue even if one point fails.
+            });
+        }, SIMULATED_STEP_INTERVAL_MS);
+    };
 
-                    if (stepsTaken > 0 || latestSteps === 0) {
-                        setRoute((currentRoute) => [
-                            ...currentRoute,
-                            { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
-                        ]);
-                        lastStepCount.current = latestSteps;
-                    } else {
-                        console.log("GPS discarded: No steps detected");
-                    }
-                }
+    const startTracking = async () => {
+        if (isTracking) return;
+
+        let activeRunId = runId;
+        let startedAt = runStartedAt;
+
+        if (!activeRunId) {
+            const created = await startRunApi();
+            activeRunId = created.runId;
+            startedAt = created.startedAt;
+
+            setRunId(activeRunId);
+            setRunStartedAt(startedAt);
+            setRoute([]);
+            setRoutePoints([]);
+            setDistanceMeters(0);
+            setElapsedSeconds(0);
+            unsyncedPointsRef.current = [];
+            setCurrentStepCount(0);
+        }
+
+        if (simulateRun) {
+            await beginSimulatedLocationStream();
+        } else {
+            await beginLiveLocationStream();
+        }
+        setIsTracking(true);
+        setGpsHealthy(true);
+
+        if (activeRunId && startedAt) {
+            await storeActiveRun({
+                runId: activeRunId,
+                startedAt,
+                route: routeRef.current,
+                distanceMeters,
+            });
+        }
+
+        if (syncTimerRef.current) clearInterval(syncTimerRef.current);
+        syncTimerRef.current = setInterval(() => {
+            if (!activeRunId) return;
+            safeSync(activeRunId).catch(() => {
+                // Queue persists when sync fails.
+            });
+        }, 15000);
+    };
+
+    const stopTracking = async () => {
+        if (!runId || !runStartedAt) return;
+
+        if (subscription) {
+            subscription.remove();
+            setSubscription(null);
+        }
+
+        if (simulationTimerRef.current) {
+            clearInterval(simulationTimerRef.current);
+            simulationTimerRef.current = null;
+        }
+
+        if (syncTimerRef.current) {
+            clearInterval(syncTimerRef.current);
+            syncTimerRef.current = null;
+        }
+
+        setIsTracking(false);
+
+        const totalDurationSeconds = Math.max(
+            elapsedSeconds,
+            Math.floor((Date.now() - new Date(runStartedAt).getTime()) / 1000)
+        );
+        const distanceKm = distanceMeters / 1000;
+        const avgPace = distanceKm > 0 ? (totalDurationSeconds / 60) / distanceKm : null;
+
+        await safeSync(runId);
+
+        let territoryMessage = 'Run saved.';
+        let territoryCaptured = false;
+
+        try {
+            const finishResponse = await finishRunApi(runId, {
+                distanceKm,
+                durationSeconds: totalDurationSeconds,
+                avgPace,
+            });
+
+            territoryCaptured = Boolean(finishResponse?.territory?.success);
+            territoryMessage = finishResponse?.territory?.message || territoryMessage;
+        } catch {
+            territoryMessage = 'Run saved locally. Backend sync will resume when online.';
+        }
+
+        if (routeRef.current.length > 3) {
+            const startPoint = routeRef.current[0];
+            const endPoint = routeRef.current[routeRef.current.length - 1];
+            const loopGap = getDistanceFromLatLonInMeters(
+                startPoint.latitude,
+                startPoint.longitude,
+                endPoint.latitude,
+                endPoint.longitude
             );
-            setSubscription(sub);
+
+            if (territoryCaptured || loopGap < 75) {
+                setTerritories((prev) => [...prev, routeRef.current]);
+            }
+        }
+
+        await upsertLocalRun({
+            id: runId,
+            startedAt: runStartedAt,
+            endedAt: toIsoTime(),
+            distanceKm,
+            durationSeconds: totalDurationSeconds,
+            avgPace,
+            cadenceSpm: cadenceSpm > 0 ? cadenceSpm : null,
+            points: routePointsRef.current,
+            territoryCaptured,
+            territoryMessage,
+        });
+
+        await clearStoredActiveRun();
+
+        Alert.alert(
+            territoryCaptured ? 'Territory Captured' : 'Run Finished',
+            territoryCaptured
+                ? `${territoryMessage} Area: ${Math.round(calculatePolygonArea(routeRef.current))} sq m.`
+                : territoryMessage
+        );
+
+        setRunId(null);
+        setRunStartedAt(null);
+        setElapsedSeconds(0);
+        lastStepCountRef.current = 0;
+        setCurrentStepCount(0);
+    };
+
+    const recoverPersistedRoute = async () => {
+        if (!runId) return;
+
+        try {
+            const remote = await fetchRunByIdApi(runId);
+            if (remote?.points?.length) {
+                const points = remote.points.map((point) => ({
+                    latitude: Number(point.latitude),
+                    longitude: Number(point.longitude),
+                }));
+                setRoute(points);
+            }
+        } catch {
+            // Keep local fallback route.
+        }
+    };
+
+    useEffect(() => {
+        if (runId && !isTracking) {
+            recoverPersistedRoute().catch(() => {
+                // Keep local fallback route.
+            });
+        }
+    }, [runId, isTracking]);
+
+    const onPrimaryAction = async () => {
+        try {
+            if (isTracking) {
+                await stopTracking();
+            } else {
+                await startTracking();
+            }
+        } catch (error) {
+            Alert.alert('Tracking error', 'Unable to change tracking state. Please try again.');
         }
     };
 
@@ -214,6 +519,7 @@ export default function RunTrackerMap() {
         <View style={styles.container}>
             {location ? (
                 <MapView
+                    ref={mapRef}
                     style={styles.map}
                     initialRegion={{
                         latitude: location.coords.latitude,
@@ -223,38 +529,56 @@ export default function RunTrackerMap() {
                     }}
                     showsUserLocation
                 >
-                    {route.length > 0 && (
-                        <Polyline
-                            coordinates={route}
-                            strokeColor="#FF0000" // red
-                            strokeWidth={5}
-                        />
-                    )}
+                    {route.length > 0 && <Polyline coordinates={route} strokeColor="#ef4444" strokeWidth={5} />}
 
                     {territories.map((territoryRegion, index) => (
                         <Polygon
-                            key={index}
+                            key={`${territoryRegion.length}-${index}`}
                             coordinates={territoryRegion}
-                            fillColor="rgba(0, 150, 255, 0.4)" // Translucent Blue overlay
-                            strokeColor="rgba(0, 0, 255, 0.8)"
+                            fillColor="rgba(14, 165, 233, 0.35)"
+                            strokeColor="rgba(2, 132, 199, 0.9)"
                             strokeWidth={2}
                         />
                     ))}
                 </MapView>
             ) : (
-                <Text>Getting Location...</Text>
+                <Text>Getting location...</Text>
             )}
 
             <View style={styles.controls}>
-                <Button
-                    title={isTracking ? '🏁 END RUN' : '🚀 START RUN'}
-                    onPress={toggleTracking}
-                    color={isTracking ? '#ef4444' : '#10b981'} // nicer red/green
-                />
+                {!isTracking && (
+                    <TouchableOpacity
+                        onPress={() => setSimulateRun((prev) => !prev)}
+                        style={[styles.modeButton, simulateRun ? styles.modeButtonActive : styles.modeButtonInactive]}
+                    >
+                        <Text style={styles.modeButtonText}>{simulateRun ? 'Simulation Mode: ON' : 'Simulation Mode: OFF'}</Text>
+                    </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                    onPress={onPrimaryAction}
+                    style={[styles.primaryButton, isTracking ? styles.stopButton : styles.startButton]}
+                >
+                    <Text style={styles.primaryButtonText}>{isTracking ? 'END RUN' : 'START RUN'}</Text>
+                </TouchableOpacity>
+
                 <View style={styles.statsRow}>
-                    <Text style={styles.stats}>📍 Points: {route.length}</Text>
-                    <Text style={styles.stats}>👟 Steps: {currentStepCount}</Text>
+                    <Text style={styles.statText}>Distance {distanceMeters > 0 ? (distanceMeters / 1000).toFixed(2) : '0.00'} km</Text>
+                    <Text style={styles.statText}>Steps {currentStepCount}</Text>
                 </View>
+
+                <View style={styles.statsRow}>
+                    <Text style={styles.statText}>Pace {paceMinPerKm > 0 ? paceMinPerKm.toFixed(2) : '--'} min/km</Text>
+                    <Text style={styles.statText}>Cadence {cadenceSpm > 0 ? Math.round(cadenceSpm) : 0} spm</Text>
+                </View>
+
+                <Text style={[styles.gpsStatus, gpsHealthy ? styles.gpsOk : styles.gpsWarn]}>
+                    {simulateRun
+                        ? 'Simulation is driving route and steps.'
+                        : gpsHealthy
+                            ? 'GPS signal stable'
+                            : 'GPS signal weak. Keep moving in open sky.'}
+                </Text>
             </View>
         </View>
     );
@@ -270,27 +594,74 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
     },
     controls: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        paddingVertical: 15,
-        paddingHorizontal: 25,
-        borderRadius: 20,
-        marginBottom: 30,
+        backgroundColor: 'rgba(255, 255, 255, 0.96)',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 16,
+        marginBottom: 24,
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.22,
+        shadowRadius: 10,
         elevation: 8,
-        minWidth: 200,
+        minWidth: 280,
+    },
+    primaryButton: {
+        minWidth: 220,
+        borderRadius: 10,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    modeButton: {
+        minWidth: 220,
+        borderRadius: 10,
+        paddingVertical: 10,
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    modeButtonActive: {
+        backgroundColor: '#0ea5e9',
+    },
+    modeButtonInactive: {
+        backgroundColor: '#94a3b8',
+    },
+    modeButtonText: {
+        color: '#ffffff',
+        fontWeight: '700',
+        fontSize: 13,
+    },
+    startButton: {
+        backgroundColor: '#10b981',
+    },
+    stopButton: {
+        backgroundColor: '#ef4444',
+    },
+    primaryButtonText: {
+        color: '#ffffff',
+        fontWeight: '700',
+        fontSize: 16,
     },
     statsRow: {
         flexDirection: 'row',
-        marginTop: 12,
-        gap: 20,
+        justifyContent: 'space-between',
+        width: '100%',
+        marginTop: 8,
     },
-    stats: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#334155'
+    statText: {
+        color: '#334155',
+        fontWeight: '600',
+        fontSize: 13,
+    },
+    gpsStatus: {
+        marginTop: 10,
+        fontWeight: '600',
+        fontSize: 12,
+    },
+    gpsOk: {
+        color: '#059669',
+    },
+    gpsWarn: {
+        color: '#d97706',
     },
 });
