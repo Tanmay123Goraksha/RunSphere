@@ -5,6 +5,7 @@ import MapView, { Polyline } from 'react-native-maps';
 
 import { fetchRunByIdApi } from '@/services/runApi';
 import { getLocalRunById, LocalRun } from '@/services/runStorage';
+import { runSphereTheme } from '@/constants/runSphereTheme';
 
 type DisplayRun = {
     id: string;
@@ -104,6 +105,7 @@ export default function RunDetailScreen() {
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+            <View style={styles.heroBubble} />
             <Text style={styles.title}>Run Details</Text>
             <Text style={styles.meta}>{new Date(run.startedAt).toLocaleString()}</Text>
 
@@ -140,22 +142,33 @@ export default function RunDetailScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: runSphereTheme.colors.background,
     },
     content: {
         paddingTop: 60,
         paddingHorizontal: 16,
         paddingBottom: 24,
+        overflow: 'hidden',
+    },
+    heroBubble: {
+        position: 'absolute',
+        width: 260,
+        height: 260,
+        borderRadius: 130,
+        right: -100,
+        top: -80,
+        backgroundColor: '#cdebc4',
     },
     title: {
-        fontSize: 26,
-        fontWeight: '800',
-        color: '#0f172a',
+        fontSize: 34,
+        color: runSphereTheme.colors.ink,
+        fontFamily: runSphereTheme.font.heading,
     },
     meta: {
         marginTop: 6,
-        color: '#64748b',
-        marginBottom: 12,
+        color: runSphereTheme.colors.inkMuted,
+        marginBottom: 14,
+        fontWeight: '600',
     },
     metricsGrid: {
         flexDirection: 'row',
@@ -165,30 +178,30 @@ const styles = StyleSheet.create({
     },
     metricCard: {
         width: '48%',
-        backgroundColor: '#ffffff',
-        borderRadius: 14,
+        backgroundColor: runSphereTheme.colors.surface,
+        borderRadius: runSphereTheme.radius.md,
+        borderWidth: 1,
+        borderColor: runSphereTheme.colors.line,
         padding: 12,
-        shadowColor: '#0f172a',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 2,
+        ...runSphereTheme.shadow.card,
     },
     metricLabel: {
-        color: '#475569',
-        fontWeight: '600',
+        color: runSphereTheme.colors.inkMuted,
+        fontWeight: '700',
     },
     metricValue: {
         marginTop: 4,
-        color: '#0f172a',
+        color: runSphereTheme.colors.ink,
         fontWeight: '800',
         fontSize: 16,
     },
     mapWrap: {
         marginTop: 16,
-        borderRadius: 14,
+        borderRadius: runSphereTheme.radius.md,
         overflow: 'hidden',
         height: 340,
+        borderWidth: 1,
+        borderColor: runSphereTheme.colors.line,
     },
     map: {
         flex: 1,
@@ -197,10 +210,10 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: runSphereTheme.colors.background,
     },
     emptyText: {
-        color: '#64748b',
+        color: runSphereTheme.colors.inkMuted,
         fontWeight: '700',
     },
 });

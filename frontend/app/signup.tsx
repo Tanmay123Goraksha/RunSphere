@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
+import { runSphereTheme } from '@/constants/runSphereTheme';
 
 export default function SignupScreen() {
     const [username, setUsername] = useState('');
@@ -34,16 +35,21 @@ export default function SignupScreen() {
             style={styles.keyboardView}
         >
             <View style={styles.container}>
+                <View style={styles.blobTop} />
+                <View style={styles.blobBottom} />
+
                 <View style={styles.headerContainer}>
+                    <Text style={styles.kicker}>NEW RUNNER</Text>
                     <Text style={styles.logoText}>Join RunSphere</Text>
-                    <Text style={styles.subtitle}>Start claiming your territory today.</Text>
+                    <Text style={styles.subtitle}>Start claiming your streets today.</Text>
                 </View>
 
                 <View style={styles.formContainer}>
+                    <Text style={styles.formTitle}>Create Account</Text>
                     <TextInput
                         style={styles.input}
                         placeholder="Username"
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor="#6f7d70"
                         value={username}
                         onChangeText={setUsername}
                         autoCapitalize="none"
@@ -51,7 +57,7 @@ export default function SignupScreen() {
                     <TextInput
                         style={styles.input}
                         placeholder="Email"
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor="#6f7d70"
                         value={email}
                         onChangeText={setEmail}
                         autoCapitalize="none"
@@ -60,7 +66,7 @@ export default function SignupScreen() {
                     <TextInput
                         style={styles.input}
                         placeholder="Password"
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor="#6f7d70"
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry
@@ -85,58 +91,88 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
     keyboardView: {
         flex: 1,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: runSphereTheme.colors.background,
     },
     container: {
         flex: 1,
         padding: 24,
         justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    blobTop: {
+        position: 'absolute',
+        width: 260,
+        height: 260,
+        borderRadius: 130,
+        backgroundColor: '#cbe8fa',
+        top: -90,
+        left: -40,
+    },
+    blobBottom: {
+        position: 'absolute',
+        width: 320,
+        height: 320,
+        borderRadius: 160,
+        backgroundColor: '#fee6bc',
+        bottom: -120,
+        right: -120,
     },
     headerContainer: {
         alignItems: 'center',
-        marginBottom: 48,
+        marginBottom: 32,
+    },
+    kicker: {
+        fontSize: 11,
+        letterSpacing: 1.6,
+        color: runSphereTheme.colors.inkMuted,
+        fontWeight: '800',
     },
     logoText: {
-        fontSize: 36,
-        fontWeight: '900',
-        color: '#2563eb', // Vivid Blue
-        letterSpacing: -1,
-        marginBottom: 8,
+        fontSize: 38,
+        color: runSphereTheme.colors.ink,
+        letterSpacing: 0.2,
+        marginTop: 4,
+        fontFamily: runSphereTheme.font.heading,
     },
     subtitle: {
         fontSize: 16,
-        color: '#6b7280',
-        fontWeight: '500',
+        color: runSphereTheme.colors.inkMuted,
+        fontWeight: '600',
+        marginTop: 4,
     },
     formContainer: {
-        backgroundColor: '#ffffff',
+        backgroundColor: runSphereTheme.colors.surface,
         padding: 24,
-        borderRadius: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 12,
-        elevation: 3,
+        borderRadius: runSphereTheme.radius.lg,
+        borderWidth: 1,
+        borderColor: runSphereTheme.colors.line,
+        ...runSphereTheme.shadow.card,
+    },
+    formTitle: {
+        color: runSphereTheme.colors.ink,
+        fontSize: 20,
+        marginBottom: 14,
+        fontWeight: '800',
     },
     input: {
-        backgroundColor: '#f9fafb',
+        backgroundColor: runSphereTheme.colors.surfaceMuted,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: runSphereTheme.colors.line,
         padding: 16,
         marginBottom: 16,
         borderRadius: 12,
         fontSize: 16,
-        color: '#1f2937',
+        color: runSphereTheme.colors.ink,
     },
     primaryButton: {
-        backgroundColor: '#2563eb',
+        backgroundColor: runSphereTheme.colors.accentStrong,
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: runSphereTheme.radius.md,
         alignItems: 'center',
         marginTop: 8,
-        shadowColor: '#2563eb',
+        shadowColor: runSphereTheme.colors.accentStrong,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.26,
         shadowRadius: 8,
         elevation: 4,
     },
@@ -147,17 +183,17 @@ const styles = StyleSheet.create({
     },
     footer: {
         flexDirection: 'row',
-        marginTop: 32,
+        marginTop: 24,
         justifyContent: 'center',
         alignItems: 'center'
     },
     footerText: {
         fontSize: 15,
-        color: '#6b7280',
+        color: runSphereTheme.colors.inkMuted,
     },
     footerLink: {
         fontSize: 15,
-        fontWeight: 'bold',
-        color: '#2563eb',
+        fontWeight: '800',
+        color: runSphereTheme.colors.accentStrong,
     }
 });

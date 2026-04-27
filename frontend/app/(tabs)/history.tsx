@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 
 import { fetchRunsApi, RunSummary } from '@/services/runApi';
 import { getLocalRuns, LocalRun, upsertLocalRun } from '@/services/runStorage';
+import { runSphereTheme } from '@/constants/runSphereTheme';
 
 type RunRow = {
     id: string;
@@ -92,10 +93,15 @@ export default function HistoryScreen() {
 
     return (
         <View style={styles.container}>
+            <View style={styles.blobTop} />
+            <View style={styles.blobBottom} />
+
+            <Text style={styles.kicker}>ARCHIVE</Text>
             <Text style={styles.title}>Run History</Text>
             <FlatList
                 data={runs}
                 keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.listContent}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadRuns} />}
                 ListEmptyComponent={<Text style={styles.empty}>No runs yet. Start your first run.</Text>}
                 renderItem={({ item }) => (
@@ -130,49 +136,76 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: runSphereTheme.colors.background,
         paddingTop: 60,
         paddingHorizontal: 16,
+        overflow: 'hidden',
+    },
+    blobTop: {
+        position: 'absolute',
+        width: 240,
+        height: 240,
+        borderRadius: 120,
+        backgroundColor: '#cdebc4',
+        top: -80,
+        right: -40,
+    },
+    blobBottom: {
+        position: 'absolute',
+        width: 300,
+        height: 300,
+        borderRadius: 150,
+        backgroundColor: '#f5dfbe',
+        bottom: -130,
+        left: -120,
+    },
+    kicker: {
+        fontSize: 11,
+        letterSpacing: 1.5,
+        color: runSphereTheme.colors.inkMuted,
+        fontWeight: '800',
     },
     title: {
-        fontSize: 26,
-        fontWeight: '800',
-        color: '#0f172a',
-        marginBottom: 14,
+        fontSize: 34,
+        color: runSphereTheme.colors.ink,
+        marginBottom: 12,
+        fontFamily: runSphereTheme.font.heading,
+    },
+    listContent: {
+        paddingBottom: 30,
     },
     card: {
-        backgroundColor: '#ffffff',
-        borderRadius: 14,
-        padding: 14,
+        backgroundColor: runSphereTheme.colors.surface,
+        borderRadius: runSphereTheme.radius.md,
+        borderWidth: 1,
+        borderColor: runSphereTheme.colors.line,
+        padding: 16,
         marginBottom: 12,
-        shadowColor: '#0f172a',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 2,
+        ...runSphereTheme.shadow.card,
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 6,
+        marginBottom: 7,
     },
     metricLabel: {
-        color: '#475569',
-        fontWeight: '600',
+        color: runSphereTheme.colors.inkMuted,
+        fontWeight: '700',
+        letterSpacing: 0.2,
     },
     metricValue: {
-        color: '#0f172a',
-        fontWeight: '700',
+        color: runSphereTheme.colors.ink,
+        fontWeight: '800',
     },
     meta: {
         marginTop: 6,
-        color: '#64748b',
+        color: runSphereTheme.colors.inkMuted,
         fontSize: 12,
     },
     empty: {
-        color: '#64748b',
+        color: runSphereTheme.colors.inkMuted,
         textAlign: 'center',
-        marginTop: 24,
-        fontWeight: '600',
+        marginTop: 60,
+        fontWeight: '700',
     },
 });

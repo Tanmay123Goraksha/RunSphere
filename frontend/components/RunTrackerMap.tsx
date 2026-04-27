@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Polygon, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { runSphereTheme } from '@/constants/runSphereTheme';
 
 import { usePedometer } from '../hooks/usePedometer';
 import { fetchRunByIdApi, finishRunApi, startRunApi, syncRunPointsApi } from '@/services/runApi';
@@ -546,6 +547,7 @@ export default function RunTrackerMap() {
             )}
 
             <View style={styles.controls}>
+                <Text style={styles.panelTitle}>Run Console</Text>
                 {!isTracking && (
                     <TouchableOpacity
                         onPress={() => setSimulateRun((prev) => !prev)}
@@ -562,14 +564,28 @@ export default function RunTrackerMap() {
                     <Text style={styles.primaryButtonText}>{isTracking ? 'END RUN' : 'START RUN'}</Text>
                 </TouchableOpacity>
 
-                <View style={styles.statsRow}>
-                    <Text style={styles.statText}>Distance {distanceMeters > 0 ? (distanceMeters / 1000).toFixed(2) : '0.00'} km</Text>
-                    <Text style={styles.statText}>Steps {currentStepCount}</Text>
+                <View style={styles.metricsWrap}>
+                    <View style={styles.metricCard}>
+                        <Text style={styles.metricLabel}>Distance</Text>
+                        <Text style={styles.metricValue}>{distanceMeters > 0 ? (distanceMeters / 1000).toFixed(2) : '0.00'} km</Text>
+                    </View>
+
+                    <View style={styles.metricCard}>
+                        <Text style={styles.metricLabel}>Steps</Text>
+                        <Text style={styles.metricValue}>{currentStepCount}</Text>
+                    </View>
                 </View>
 
-                <View style={styles.statsRow}>
-                    <Text style={styles.statText}>Pace {paceMinPerKm > 0 ? paceMinPerKm.toFixed(2) : '--'} min/km</Text>
-                    <Text style={styles.statText}>Cadence {cadenceSpm > 0 ? Math.round(cadenceSpm) : 0} spm</Text>
+                <View style={styles.metricsWrap}>
+                    <View style={styles.metricCard}>
+                        <Text style={styles.metricLabel}>Pace</Text>
+                        <Text style={styles.metricValue}>{paceMinPerKm > 0 ? paceMinPerKm.toFixed(2) : '--'} min/km</Text>
+                    </View>
+
+                    <View style={styles.metricCard}>
+                        <Text style={styles.metricLabel}>Cadence</Text>
+                        <Text style={styles.metricValue}>{cadenceSpm > 0 ? Math.round(cadenceSpm) : 0} spm</Text>
+                    </View>
                 </View>
 
                 <Text style={[styles.gpsStatus, gpsHealthy ? styles.gpsOk : styles.gpsWarn]}>
@@ -594,37 +610,45 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
     },
     controls: {
-        backgroundColor: 'rgba(255, 255, 255, 0.96)',
-        paddingVertical: 14,
+        backgroundColor: 'rgba(244, 247, 239, 0.97)',
+        paddingVertical: 16,
         paddingHorizontal: 16,
-        borderRadius: 16,
-        marginBottom: 24,
+        borderRadius: runSphereTheme.radius.lg,
+        marginBottom: 20,
         alignItems: 'center',
-        shadowColor: '#0f172a',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.22,
-        shadowRadius: 10,
+        borderWidth: 1,
+        borderColor: '#d8e7d4',
+        shadowColor: '#122018',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.24,
+        shadowRadius: 16,
         elevation: 8,
-        minWidth: 280,
+        minWidth: 318,
+    },
+    panelTitle: {
+        color: runSphereTheme.colors.ink,
+        fontFamily: runSphereTheme.font.heading,
+        fontSize: 21,
+        marginBottom: 10,
     },
     primaryButton: {
-        minWidth: 220,
-        borderRadius: 10,
-        paddingVertical: 12,
+        minWidth: 260,
+        borderRadius: runSphereTheme.radius.md,
+        paddingVertical: 13,
         alignItems: 'center',
     },
     modeButton: {
-        minWidth: 220,
-        borderRadius: 10,
+        minWidth: 260,
+        borderRadius: runSphereTheme.radius.md,
         paddingVertical: 10,
         alignItems: 'center',
         marginBottom: 10,
     },
     modeButtonActive: {
-        backgroundColor: '#0ea5e9',
+        backgroundColor: '#115e59',
     },
     modeButtonInactive: {
-        backgroundColor: '#94a3b8',
+        backgroundColor: '#5f6f65',
     },
     modeButtonText: {
         color: '#ffffff',
@@ -632,36 +656,55 @@ const styles = StyleSheet.create({
         fontSize: 13,
     },
     startButton: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#0f766e',
     },
     stopButton: {
-        backgroundColor: '#ef4444',
+        backgroundColor: '#b91c1c',
     },
     primaryButtonText: {
         color: '#ffffff',
         fontWeight: '700',
         fontSize: 16,
     },
-    statsRow: {
+    metricsWrap: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         width: '100%',
-        marginTop: 8,
+        gap: 10,
+        marginTop: 10,
     },
-    statText: {
-        color: '#334155',
-        fontWeight: '600',
-        fontSize: 13,
+    metricCard: {
+        flex: 1,
+        backgroundColor: '#ffffff',
+        borderRadius: runSphereTheme.radius.sm,
+        borderWidth: 1,
+        borderColor: '#dbe9d8',
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+    },
+    metricLabel: {
+        color: runSphereTheme.colors.inkMuted,
+        fontSize: 11,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+    metricValue: {
+        marginTop: 4,
+        color: runSphereTheme.colors.ink,
+        fontSize: 14,
+        fontWeight: '800',
     },
     gpsStatus: {
-        marginTop: 10,
+        marginTop: 12,
         fontWeight: '600',
         fontSize: 12,
+        textAlign: 'center',
     },
     gpsOk: {
-        color: '#059669',
+        color: '#166534',
     },
     gpsWarn: {
-        color: '#d97706',
+        color: '#b45309',
     },
 });

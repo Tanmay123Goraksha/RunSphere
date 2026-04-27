@@ -1,9 +1,9 @@
-import { StyleSheet, Button } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
-import { Text, View } from '@/components/Themed';
 import RunTrackerMap from '@/components/RunTrackerMap';
+import { runSphereTheme } from '@/constants/runSphereTheme';
 
 export default function HomeScreen() {
   const handleLogout = async () => {
@@ -15,8 +15,14 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <RunTrackerMap />
       <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>RunSphere</Text>
-        <Button title="Logout" onPress={handleLogout} color="#475569" />
+        <View>
+          <Text style={styles.kicker}>LIVE TERRITORY</Text>
+          <Text style={styles.headerTitle}>RunSphere</Text>
+        </View>
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -28,26 +34,45 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
+    top: 54,
+    left: 16,
+    right: 16,
     zIndex: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    padding: 10,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: 'rgba(15, 118, 110, 0.88)',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: runSphereTheme.radius.md,
+    shadowColor: '#09322f',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  kicker: {
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: '#d1fae5',
+    fontWeight: '700',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0f172a',
+    marginTop: 2,
+    fontSize: 24,
+    color: '#f0fdf4',
+    fontFamily: runSphereTheme.font.heading,
+  },
+  logoutButton: {
+    backgroundColor: '#ecfccb',
+    borderRadius: runSphereTheme.radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  logoutText: {
+    color: '#365314',
+    fontWeight: '800',
+    fontSize: 13,
   },
   separator: {
     marginVertical: 30,
