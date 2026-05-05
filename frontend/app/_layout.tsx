@@ -1,12 +1,10 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-
-import { useColorScheme } from '@/components/useColorScheme';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -14,12 +12,25 @@ export {
 } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
   initialRouteName: 'index',
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Custom dark theme matching RunSphere neon aesthetic
+const RunSphereDark = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: '#00E5FF',
+    background: '#0a0a1a',
+    card: '#080818',
+    text: '#e8eaed',
+    border: 'rgba(0, 229, 255, 0.08)',
+    notification: '#FF1744',
+  },
+};
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -27,7 +38,6 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -46,15 +56,13 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={RunSphereDark}>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="run/[id]" options={{ title: 'Run Detail' }} />
+        <Stack.Screen name="run/[id]" options={{ title: 'Run Detail', headerStyle: { backgroundColor: '#080818' }, headerTintColor: '#00E5FF' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>

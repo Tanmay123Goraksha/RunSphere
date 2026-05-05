@@ -51,7 +51,6 @@ export default function HistoryScreen() {
 
     const loadRuns = useCallback(async () => {
         setRefreshing(true);
-
         const localRuns = await getLocalRuns();
         const byId = new Map<string, RunRow>(localRuns.map((run) => [run.id, toRunRow(run)]));
 
@@ -60,49 +59,38 @@ export default function HistoryScreen() {
             remoteRuns.forEach((remoteRun) => {
                 byId.set(remoteRun.id, fromRemote(remoteRun));
             });
-
             for (const remoteRun of remoteRuns) {
                 await upsertLocalRun({
-                    id: remoteRun.id,
-                    startedAt: remoteRun.started_at,
+                    id: remoteRun.id, startedAt: remoteRun.started_at,
                     endedAt: remoteRun.ended_at || undefined,
                     distanceKm: Number(remoteRun.distance_km) || 0,
                     durationSeconds: Number(remoteRun.duration_seconds) || 0,
                     avgPace: remoteRun.avg_pace !== null ? Number(remoteRun.avg_pace) : null,
-                    cadenceSpm: null,
-                    points: [],
+                    cadenceSpm: null, points: [],
                 });
             }
-        } catch {
-            // Local cache remains the source of truth when offline.
-        }
+        } catch { /* Local cache remains source of truth when offline */ }
 
         const merged = Array.from(byId.values()).sort(
             (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
         );
-
         setRuns(merged);
         setRefreshing(false);
     }, []);
 
     useEffect(() => {
-        loadRuns().catch(() => {
-            setRefreshing(false);
-        });
+        loadRuns().catch(() => setRefreshing(false));
     }, [loadRuns]);
 
     return (
         <View style={styles.container}>
-            <View style={styles.blobTop} />
-            <View style={styles.blobBottom} />
-
             <Text style={styles.kicker}>ARCHIVE</Text>
             <Text style={styles.title}>Run History</Text>
             <FlatList
                 data={runs}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadRuns} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadRuns} tintColor={runSphereTheme.colors.accent} />}
                 ListEmptyComponent={<Text style={styles.empty}>No runs yet. Start your first run.</Text>}
                 renderItem={({ item }) => (
                     <TouchableOpacity
@@ -139,30 +127,11 @@ const styles = StyleSheet.create({
         backgroundColor: runSphereTheme.colors.background,
         paddingTop: 60,
         paddingHorizontal: 16,
-        overflow: 'hidden',
-    },
-    blobTop: {
-        position: 'absolute',
-        width: 240,
-        height: 240,
-        borderRadius: 120,
-        backgroundColor: '#cdebc4',
-        top: -80,
-        right: -40,
-    },
-    blobBottom: {
-        position: 'absolute',
-        width: 300,
-        height: 300,
-        borderRadius: 150,
-        backgroundColor: '#f5dfbe',
-        bottom: -130,
-        left: -120,
     },
     kicker: {
         fontSize: 11,
         letterSpacing: 1.5,
-        color: runSphereTheme.colors.inkMuted,
+        color: runSphereTheme.colors.accent,
         fontWeight: '800',
     },
     title: {
@@ -171,14 +140,12 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         fontFamily: runSphereTheme.font.heading,
     },
-    listContent: {
-        paddingBottom: 30,
-    },
+    listContent: { paddingBottom: 30 },
     card: {
         backgroundColor: runSphereTheme.colors.surface,
         borderRadius: runSphereTheme.radius.md,
         borderWidth: 1,
-        borderColor: runSphereTheme.colors.line,
+        borderColor: runSphereTheme.colors.glassBorder,
         padding: 16,
         marginBottom: 12,
         ...runSphereTheme.shadow.card,
@@ -199,7 +166,7 @@ const styles = StyleSheet.create({
     },
     meta: {
         marginTop: 6,
-        color: runSphereTheme.colors.inkMuted,
+        color: runSphereTheme.colors.inkSubtle,
         fontSize: 12,
     },
     empty: {

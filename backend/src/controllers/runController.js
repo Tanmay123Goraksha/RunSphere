@@ -5,6 +5,7 @@ const { mapMatchRunPoints } = require('../services/mapMatching/osrmService');
 const { calculateRunPoints } = require('../services/gamification/pointsService');
 const { applyPostRunProgression } = require('../services/gamification/progressionService');
 const leaderboardService = require('../services/leaderboard/leaderboardService');
+const { createTerritoryFromRun } = require('../services/zones/territoryService');
 const { getIO } = require('../socket/socketManager');
 
 const startRun = async (req, res) => {
@@ -128,6 +129,19 @@ const finishRun = async (req, res) => {
       avgPace: safeAvgPace,
       traversedHexes,
     });
+
+    // 4. Create a visual territory polygon from the buffered run path.
+    //    H3 zones stay as backend-only indexing. The frontend only
+    //    renders these smooth, street-following territory polygons.
+    try {
+      await createTerritoryFromRun({
+        runId,
+        userId,
+        clubId: endedRun.club_id || null,
+      });
+    } catch (territoryError) {
+      console.warn('Territory polygon creation skipped:', territoryError.message);
+    }
 
     const pointsResult = calculateRunPoints({
       distanceKm: safeDistance,

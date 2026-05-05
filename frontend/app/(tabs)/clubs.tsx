@@ -18,51 +18,31 @@ export default function ClubsScreen() {
             const [all, mine] = await Promise.all([fetchClubs(), fetchMyClubs()]);
             setAllClubs(all);
             setMyClubs(mine);
-        } catch {
-            Alert.alert('Error', 'Failed to load clubs right now.');
-        } finally {
-            setRefreshing(false);
-        }
+        } catch { Alert.alert('Error', 'Failed to load clubs right now.'); }
+        finally { setRefreshing(false); }
     }, []);
 
-    useEffect(() => {
-        load().catch(() => {
-            // Error handled in loader.
-        });
-    }, [load]);
+    useEffect(() => { load().catch(() => {}); }, [load]);
 
     const mySet = new Set(myClubs.map((club) => club.id));
 
     const onCreate = async () => {
-        if (!name.trim()) {
-            Alert.alert('Required', 'Club name is required.');
-            return;
-        }
-
+        if (!name.trim()) { Alert.alert('Required', 'Club name is required.'); return; }
         try {
             setCreating(true);
             await createClubApi({ name: name.trim(), description: description.trim() || undefined });
-            setName('');
-            setDescription('');
+            setName(''); setDescription('');
             await load();
-        } catch (error: any) {
-            Alert.alert('Error', error?.message || 'Failed to create club');
-        } finally {
-            setCreating(false);
-        }
+        } catch (error: any) { Alert.alert('Error', error?.message || 'Failed to create club'); }
+        finally { setCreating(false); }
     };
 
     const onJoinLeave = async (clubId: string, isMember: boolean) => {
         try {
-            if (isMember) {
-                await leaveClubApi(clubId);
-            } else {
-                await joinClubApi(clubId);
-            }
+            if (isMember) await leaveClubApi(clubId);
+            else await joinClubApi(clubId);
             await load();
-        } catch (error: any) {
-            Alert.alert('Error', error?.message || 'Action failed');
-        }
+        } catch (error: any) { Alert.alert('Error', error?.message || 'Action failed'); }
     };
 
     return (
@@ -72,27 +52,15 @@ export default function ClubsScreen() {
 
             <ScrollView
                 style={styles.scroll}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={runSphereTheme.colors.accent} />}
                 contentContainerStyle={styles.content}
             >
                 <View style={styles.card}>
                     <Text style={styles.cardTitle}>Create Club</Text>
-                    <TextInput
-                        value={name}
-                        onChangeText={setName}
-                        placeholder="Club name"
-                        placeholderTextColor="#6f7d70"
-                        style={styles.input}
-                    />
-                    <TextInput
-                        value={description}
-                        onChangeText={setDescription}
-                        placeholder="Description (optional)"
-                        placeholderTextColor="#6f7d70"
-                        style={[styles.input, styles.inputMultiline]}
-                        multiline
-                    />
-
+                    <TextInput value={name} onChangeText={setName} placeholder="Club name"
+                        placeholderTextColor={runSphereTheme.colors.inkSubtle} style={styles.input} />
+                    <TextInput value={description} onChangeText={setDescription} placeholder="Description (optional)"
+                        placeholderTextColor={runSphereTheme.colors.inkSubtle} style={[styles.input, styles.inputMultiline]} multiline />
                     <TouchableOpacity style={styles.primaryButton} onPress={onCreate} disabled={creating}>
                         <Text style={styles.primaryText}>{creating ? 'Creating...' : 'Create Club'}</Text>
                     </TouchableOpacity>
@@ -128,7 +96,6 @@ export default function ClubsScreen() {
                                         <Text style={styles.clubDesc}>{club.description || 'No description'}</Text>
                                         <Text style={styles.memberCount}>{Number(club.member_count || 0)} members</Text>
                                     </View>
-
                                     <TouchableOpacity
                                         style={[styles.joinButton, isMember ? styles.leaveButton : styles.joinButtonActive]}
                                         onPress={() => onJoinLeave(club.id, isMember)}
@@ -155,7 +122,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     kicker: {
-        color: runSphereTheme.colors.inkMuted,
+        color: runSphereTheme.colors.secondary,
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 1.5,
@@ -166,18 +133,13 @@ const styles = StyleSheet.create({
         color: runSphereTheme.colors.ink,
         marginTop: 2,
     },
-    scroll: {
-        marginTop: 12,
-    },
-    content: {
-        paddingBottom: 24,
-        gap: 12,
-    },
+    scroll: { marginTop: 12 },
+    content: { paddingBottom: 24, gap: 12 },
     card: {
         backgroundColor: runSphereTheme.colors.surface,
         borderRadius: runSphereTheme.radius.md,
         borderWidth: 1,
-        borderColor: runSphereTheme.colors.line,
+        borderColor: runSphereTheme.colors.glassBorder,
         padding: 14,
         ...runSphereTheme.shadow.card,
     },
@@ -197,20 +159,15 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         marginBottom: 10,
     },
-    inputMultiline: {
-        minHeight: 72,
-        textAlignVertical: 'top',
-    },
+    inputMultiline: { minHeight: 72, textAlignVertical: 'top' },
     primaryButton: {
-        backgroundColor: runSphereTheme.colors.accentStrong,
+        backgroundColor: runSphereTheme.colors.accent,
         borderRadius: runSphereTheme.radius.pill,
         alignItems: 'center',
         paddingVertical: 11,
+        ...runSphereTheme.shadow.accentButton,
     },
-    primaryText: {
-        color: '#f0fdf4',
-        fontWeight: '800',
-    },
+    primaryText: { color: '#0a0a1a', fontWeight: '900' },
     clubRow: {
         borderTopWidth: 1,
         borderTopColor: runSphereTheme.colors.line,
@@ -220,45 +177,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         gap: 12,
     },
-    clubMeta: {
-        flex: 1,
-    },
-    clubName: {
-        color: runSphereTheme.colors.ink,
-        fontWeight: '800',
-    },
-    clubDesc: {
-        marginTop: 2,
-        color: runSphereTheme.colors.inkMuted,
-        fontSize: 12,
-    },
-    memberCount: {
-        marginTop: 4,
-        color: runSphereTheme.colors.accentStrong,
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    joinButton: {
-        borderRadius: runSphereTheme.radius.pill,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-    },
-    joinButtonActive: {
-        backgroundColor: runSphereTheme.colors.accentSoft,
-    },
-    leaveButton: {
-        backgroundColor: '#ffe4e6',
-    },
-    joinText: {
-        color: runSphereTheme.colors.accentStrong,
-        fontWeight: '800',
-        fontSize: 12,
-    },
-    leaveText: {
-        color: '#b91c1c',
-    },
-    emptyText: {
-        color: runSphereTheme.colors.inkMuted,
-        fontWeight: '600',
-    },
+    clubMeta: { flex: 1 },
+    clubName: { color: runSphereTheme.colors.ink, fontWeight: '800' },
+    clubDesc: { marginTop: 2, color: runSphereTheme.colors.inkMuted, fontSize: 12 },
+    memberCount: { marginTop: 4, color: runSphereTheme.colors.secondary, fontSize: 12, fontWeight: '700' },
+    joinButton: { borderRadius: runSphereTheme.radius.pill, paddingHorizontal: 12, paddingVertical: 8 },
+    joinButtonActive: { backgroundColor: runSphereTheme.colors.accentSoft, borderWidth: 1, borderColor: runSphereTheme.colors.accent },
+    leaveButton: { backgroundColor: runSphereTheme.colors.dangerSoft, borderWidth: 1, borderColor: runSphereTheme.colors.danger },
+    joinText: { color: runSphereTheme.colors.accent, fontWeight: '800', fontSize: 12 },
+    leaveText: { color: runSphereTheme.colors.danger },
+    emptyText: { color: runSphereTheme.colors.inkMuted, fontWeight: '600' },
 });

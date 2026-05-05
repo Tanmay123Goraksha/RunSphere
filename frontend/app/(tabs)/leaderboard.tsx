@@ -20,43 +20,23 @@ export default function LeaderboardScreen() {
             try {
                 const permission = await Location.requestForegroundPermissionsAsync();
                 if (permission.status !== 'granted') return;
-
-                const current = await Location.getCurrentPositionAsync({
-                    accuracy: Location.Accuracy.Balanced,
-                });
-
-                setCoords({
-                    latitude: current.coords.latitude,
-                    longitude: current.coords.longitude,
-                });
-            } catch {
-                // Nearby leaderboard gracefully falls back.
-            }
+                const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                setCoords({ latitude: current.coords.latitude, longitude: current.coords.longitude });
+            } catch { /* Nearby leaderboard gracefully falls back */ }
         };
-
         resolveLocation();
     }, []);
 
     const load = useCallback(async (isRefresh = false) => {
-        if (isRefresh) {
-            setRefreshing(true);
-        } else {
-            setLoading(true);
-        }
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
         setError(null);
 
         try {
             const payload =
                 scope === 'nearby' && coords
-                    ? await fetchLeaderboard({
-                        scope: 'nearby',
-                        limit: 25,
-                        latitude: coords.latitude,
-                        longitude: coords.longitude,
-                        radiusKm: 4,
-                    })
+                    ? await fetchLeaderboard({ scope: 'nearby', limit: 25, latitude: coords.latitude, longitude: coords.longitude, radiusKm: 4 })
                     : await fetchLeaderboard({ scope: scope === 'nearby' ? 'global' : scope, limit: 25 });
-
             setEntries(payload.entries || []);
         } catch (loadError: any) {
             setError(loadError?.message || 'Failed to load leaderboard.');
@@ -66,11 +46,14 @@ export default function LeaderboardScreen() {
         }
     }, [scope, coords]);
 
-    useEffect(() => {
-        load().catch(() => {
-            // Error state handled in loader.
-        });
-    }, [load]);
+    useEffect(() => { load().catch(() => {}); }, [load]);
+
+    const getRankColor = (rank: number) => {
+        if (rank === 1) return runSphereTheme.colors.xp;
+        if (rank === 2) return '#C0C0C0';
+        if (rank === 3) return '#CD7F32';
+        return runSphereTheme.colors.accent;
+    };
 
     return (
         <View style={styles.container}>
@@ -91,24 +74,22 @@ export default function LeaderboardScreen() {
 
             {loading ? (
                 <View style={styles.loaderWrap}>
-                    <ActivityIndicator size="large" color={runSphereTheme.colors.accentStrong} />
+                    <ActivityIndicator size="large" color={runSphereTheme.colors.accent} />
                 </View>
             ) : (
                 <ScrollView
                     style={styles.scroll}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={runSphereTheme.colors.accent} />}
                 >
                     {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
                     {entries.length === 0 ? (
                         <Text style={styles.empty}>No ranking data yet. Complete a run to appear here.</Text>
                     ) : (
                         entries.map((entry) => (
                             <View key={`${entry.userId}-${entry.rank}`} style={styles.rowCard}>
-                                <View style={styles.rankBadge}>
-                                    <Text style={styles.rankText}>#{entry.rank}</Text>
+                                <View style={[styles.rankBadge, { backgroundColor: `${getRankColor(entry.rank)}15` }]}>
+                                    <Text style={[styles.rankText, { color: getRankColor(entry.rank) }]}>#{entry.rank}</Text>
                                 </View>
-
                                 <View style={styles.metaWrap}>
                                     <Text style={styles.userText}>{entry.userId.slice(0, 8)}...</Text>
                                     <Text style={styles.scoreText}>{Math.round(entry.score)} pts</Text>
@@ -130,7 +111,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     kicker: {
-        color: runSphereTheme.colors.inkMuted,
+        color: runSphereTheme.colors.xp,
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 1.5,
@@ -147,16 +128,16 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     scopeButton: {
-        backgroundColor: runSphereTheme.colors.surfaceMuted,
-        paddingHorizontal: 12,
+        backgroundColor: runSphereTheme.colors.surfaceElevated,
+        paddingHorizontal: 14,
         paddingVertical: 9,
         borderRadius: runSphereTheme.radius.pill,
         borderWidth: 1,
         borderColor: runSphereTheme.colors.line,
     },
     scopeButtonActive: {
-        backgroundColor: runSphereTheme.colors.accentStrong,
-        borderColor: runSphereTheme.colors.accentStrong,
+        backgroundColor: runSphereTheme.colors.accentSoft,
+        borderColor: runSphereTheme.colors.accent,
     },
     scopeText: {
         color: runSphereTheme.colors.inkMuted,
@@ -164,16 +145,14 @@ const styles = StyleSheet.create({
         fontSize: 11,
     },
     scopeTextActive: {
-        color: '#f0fdf4',
+        color: runSphereTheme.colors.accent,
     },
-    scroll: {
-        marginTop: 14,
-    },
+    scroll: { marginTop: 14 },
     rowCard: {
         backgroundColor: runSphereTheme.colors.surface,
         borderRadius: runSphereTheme.radius.md,
         borderWidth: 1,
-        borderColor: runSphereTheme.colors.line,
+        borderColor: runSphereTheme.colors.glassBorder,
         padding: 12,
         marginBottom: 10,
         flexDirection: 'row',
@@ -184,13 +163,12 @@ const styles = StyleSheet.create({
     rankBadge: {
         minWidth: 56,
         borderRadius: runSphereTheme.radius.sm,
-        backgroundColor: runSphereTheme.colors.accentSoft,
         paddingVertical: 8,
         alignItems: 'center',
     },
     rankText: {
-        color: runSphereTheme.colors.accentStrong,
         fontWeight: '900',
+        fontFamily: runSphereTheme.font.heading,
     },
     metaWrap: {
         flex: 1,

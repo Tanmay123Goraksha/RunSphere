@@ -13,50 +13,31 @@ export default function ProgressionScreen() {
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async (isRefresh = false) => {
-        if (isRefresh) {
-            setRefreshing(true);
-        } else {
-            setLoading(true);
-        }
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
 
         try {
             const progressionData = await fetchMyProgression();
             setSummary(progressionData);
-
             try {
                 const permission = await Location.requestForegroundPermissionsAsync();
                 if (permission.status === 'granted') {
-                    const current = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
-                    });
-
+                    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
                     const recs = await fetchPreRunRecommendations({
-                        latitude: current.coords.latitude,
-                        longitude: current.coords.longitude,
-                        radiusKm: 4,
+                        latitude: current.coords.latitude, longitude: current.coords.longitude, radiusKm: 4,
                     });
                     setRecommendations(recs);
                 }
-            } catch {
-                setRecommendations([]);
-            }
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
+            } catch { setRecommendations([]); }
+        } finally { setLoading(false); setRefreshing(false); }
     }, []);
 
-    useEffect(() => {
-        load().catch(() => {
-            setLoading(false);
-            setRefreshing(false);
-        });
-    }, [load]);
+    useEffect(() => { load().catch(() => { setLoading(false); setRefreshing(false); }); }, [load]);
 
     if (loading && !summary) {
         return (
             <View style={styles.loaderWrap}>
-                <ActivityIndicator size="large" color={runSphereTheme.colors.accentStrong} />
+                <ActivityIndicator size="large" color={runSphereTheme.colors.accent} />
             </View>
         );
     }
@@ -68,14 +49,15 @@ export default function ProgressionScreen() {
 
             <ScrollView
                 style={styles.scroll}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={runSphereTheme.colors.accent} />}
                 contentContainerStyle={styles.content}
             >
+                {/* Streak card */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Streak</Text>
+                    <Text style={styles.cardTitle}>🔥 Streak</Text>
                     <View style={styles.metricRow}>
                         <Text style={styles.metricLabel}>Current</Text>
-                        <Text style={styles.metricValue}>{summary?.streak.currentStreak || 0} days</Text>
+                        <Text style={[styles.metricValue, styles.streakValue]}>{summary?.streak.currentStreak || 0} days</Text>
                     </View>
                     <View style={styles.metricRow}>
                         <Text style={styles.metricLabel}>Longest</Text>
@@ -83,8 +65,9 @@ export default function ProgressionScreen() {
                     </View>
                 </View>
 
+                {/* Performance stats */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Performance Stats</Text>
+                    <Text style={styles.cardTitle}>📊 Stats</Text>
                     <View style={styles.metricRow}>
                         <Text style={styles.metricLabel}>Valid Runs</Text>
                         <Text style={styles.metricValue}>{summary?.stats.validRuns || 0}</Text>
@@ -95,12 +78,13 @@ export default function ProgressionScreen() {
                     </View>
                     <View style={styles.metricRow}>
                         <Text style={styles.metricLabel}>Zone Captures</Text>
-                        <Text style={styles.metricValue}>{summary?.stats.capturedEvents || 0}</Text>
+                        <Text style={[styles.metricValue, styles.zoneValue]}>{summary?.stats.capturedEvents || 0}</Text>
                     </View>
                 </View>
 
+                {/* Achievements */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Achievements</Text>
+                    <Text style={styles.cardTitle}>🏆 Achievements</Text>
                     {summary?.achievements?.length ? (
                         summary.achievements.map((item) => (
                             <View key={`${item.code}-${item.unlocked_at}`} style={styles.achievementRow}>
@@ -113,8 +97,9 @@ export default function ProgressionScreen() {
                     )}
                 </View>
 
+                {/* Route recommendations */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Pre-Run Route Suggestions</Text>
+                    <Text style={styles.cardTitle}>🗺️ Route Suggestions</Text>
                     {recommendations.length ? (
                         recommendations.map((item) => (
                             <View key={item.id} style={styles.recommendationRow}>
@@ -123,6 +108,13 @@ export default function ProgressionScreen() {
                                     <Text style={styles.recommendationSub}>
                                         {item.distanceKm.toFixed(2)} km • score {item.score.composite.toFixed(1)}
                                     </Text>
+                                </View>
+                                <View style={[styles.styleBadge,
+                                    item.style === 'capture' && styles.styleBadgeCapture,
+                                    item.style === 'overtake' && styles.styleBadgeOvertake,
+                                    item.style === 'balanced' && styles.styleBadgeBalanced,
+                                ]}>
+                                    <Text style={styles.styleBadgeText}>{item.style}</Text>
                                 </View>
                             </View>
                         ))
@@ -149,7 +141,7 @@ const styles = StyleSheet.create({
         backgroundColor: runSphereTheme.colors.background,
     },
     kicker: {
-        color: runSphereTheme.colors.inkMuted,
+        color: runSphereTheme.colors.xp,
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 1.5,
@@ -160,18 +152,13 @@ const styles = StyleSheet.create({
         color: runSphereTheme.colors.ink,
         marginTop: 2,
     },
-    scroll: {
-        marginTop: 12,
-    },
-    content: {
-        paddingBottom: 24,
-        gap: 12,
-    },
+    scroll: { marginTop: 12 },
+    content: { paddingBottom: 24, gap: 12 },
     card: {
         backgroundColor: runSphereTheme.colors.surface,
         borderRadius: runSphereTheme.radius.md,
         borderWidth: 1,
-        borderColor: runSphereTheme.colors.line,
+        borderColor: runSphereTheme.colors.glassBorder,
         padding: 14,
         ...runSphereTheme.shadow.card,
     },
@@ -181,19 +168,11 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         marginBottom: 8,
     },
-    metricRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 6,
-    },
-    metricLabel: {
-        color: runSphereTheme.colors.inkMuted,
-        fontWeight: '700',
-    },
-    metricValue: {
-        color: runSphereTheme.colors.ink,
-        fontWeight: '800',
-    },
+    metricRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+    metricLabel: { color: runSphereTheme.colors.inkMuted, fontWeight: '700' },
+    metricValue: { color: runSphereTheme.colors.ink, fontWeight: '800' },
+    streakValue: { color: runSphereTheme.colors.streak },
+    zoneValue: { color: runSphereTheme.colors.accent },
     achievementRow: {
         borderTopWidth: 1,
         borderTopColor: runSphereTheme.colors.line,
@@ -201,34 +180,32 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
     },
-    achievementName: {
-        color: runSphereTheme.colors.ink,
-        fontWeight: '700',
-    },
-    achievementMeta: {
-        color: runSphereTheme.colors.accentStrong,
-        fontWeight: '800',
-        fontSize: 12,
-    },
+    achievementName: { color: runSphereTheme.colors.ink, fontWeight: '700' },
+    achievementMeta: { color: runSphereTheme.colors.xp, fontWeight: '800', fontSize: 12 },
     recommendationRow: {
         borderTopWidth: 1,
         borderTopColor: runSphereTheme.colors.line,
         paddingVertical: 8,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
-    recommendationMeta: {
-        gap: 2,
+    recommendationMeta: { flex: 1, gap: 2 },
+    recommendationName: { color: runSphereTheme.colors.ink, fontWeight: '800' },
+    recommendationSub: { color: runSphereTheme.colors.inkMuted, fontSize: 12, fontWeight: '600' },
+    styleBadge: {
+        borderRadius: runSphereTheme.radius.pill,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
     },
-    recommendationName: {
-        color: runSphereTheme.colors.ink,
+    styleBadgeCapture: { backgroundColor: runSphereTheme.colors.accentSoft },
+    styleBadgeOvertake: { backgroundColor: runSphereTheme.colors.dangerSoft },
+    styleBadgeBalanced: { backgroundColor: runSphereTheme.colors.xpSoft },
+    styleBadgeText: {
+        fontSize: 10,
         fontWeight: '800',
-    },
-    recommendationSub: {
         color: runSphereTheme.colors.inkMuted,
-        fontSize: 12,
-        fontWeight: '600',
+        textTransform: 'uppercase',
     },
-    emptyText: {
-        color: runSphereTheme.colors.inkMuted,
-        fontWeight: '600',
-    },
+    emptyText: { color: runSphereTheme.colors.inkMuted, fontWeight: '600' },
 });

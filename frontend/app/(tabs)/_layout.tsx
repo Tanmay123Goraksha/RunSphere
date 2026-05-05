@@ -1,14 +1,10 @@
 import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { runSphereTheme } from '@/constants/runSphereTheme';
+import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
@@ -17,42 +13,37 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        tabBarInactiveTintColor: '#6f7d70',
+        tabBarActiveTintColor: runSphereTheme.colors.accent,
+        tabBarInactiveTintColor: runSphereTheme.colors.inkSubtle,
         tabBarStyle: {
           height: 66,
           paddingBottom: 8,
           paddingTop: 8,
           borderTopWidth: 1,
-          borderTopColor: '#d7e4d4',
-          backgroundColor: '#f7fbf2',
+          borderTopColor: runSphereTheme.colors.tabBarBorder,
+          backgroundColor: runSphereTheme.colors.tabBar,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '700',
+          letterSpacing: 0.3,
         },
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: useClientOnlyValue(false, false),
       }}>
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Home',
-          tabBarActiveTintColor: runSphereTheme.colors.accentStrong,
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
+          title: 'Map',
+          tabBarIcon: ({ color }) => <TabBarIcon name="map" color={color} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
-          title: 'History',
-          tabBarActiveTintColor: runSphereTheme.colors.accentStrong,
+          title: 'Runs',
           tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
         }}
       />
@@ -60,7 +51,6 @@ export default function TabLayout() {
         name="leaderboard"
         options={{
           title: 'Ranks',
-          tabBarActiveTintColor: runSphereTheme.colors.accentStrong,
           tabBarIcon: ({ color }) => <TabBarIcon name="trophy" color={color} />,
         }}
       />
@@ -68,7 +58,6 @@ export default function TabLayout() {
         name="clubs"
         options={{
           title: 'Clubs',
-          tabBarActiveTintColor: runSphereTheme.colors.accentStrong,
           tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
         }}
       />
@@ -76,7 +65,6 @@ export default function TabLayout() {
         name="progression"
         options={{
           title: 'Profile',
-          tabBarActiveTintColor: runSphereTheme.colors.accentStrong,
           tabBarIcon: ({ color }) => <TabBarIcon name="star" color={color} />,
         }}
       />

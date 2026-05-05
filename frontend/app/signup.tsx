@@ -35,8 +35,8 @@ export default function SignupScreen() {
             style={styles.keyboardView}
         >
             <View style={styles.container}>
-                <View style={styles.blobTop} />
-                <View style={styles.blobBottom} />
+                <View style={styles.glowTop} />
+                <View style={styles.glowBottom} />
 
                 <View style={styles.headerContainer}>
                     <Text style={styles.kicker}>NEW RUNNER</Text>
@@ -49,7 +49,7 @@ export default function SignupScreen() {
                     <TextInput
                         style={styles.input}
                         placeholder="Username"
-                        placeholderTextColor="#6f7d70"
+                        placeholderTextColor={runSphereTheme.colors.inkSubtle}
                         value={username}
                         onChangeText={setUsername}
                         autoCapitalize="none"
@@ -57,7 +57,7 @@ export default function SignupScreen() {
                     <TextInput
                         style={styles.input}
                         placeholder="Email"
-                        placeholderTextColor="#6f7d70"
+                        placeholderTextColor={runSphereTheme.colors.inkSubtle}
                         value={email}
                         onChangeText={setEmail}
                         autoCapitalize="none"
@@ -66,7 +66,7 @@ export default function SignupScreen() {
                     <TextInput
                         style={styles.input}
                         placeholder="Password"
-                        placeholderTextColor="#6f7d70"
+                        placeholderTextColor={runSphereTheme.colors.inkSubtle}
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry
@@ -99,21 +99,21 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         overflow: 'hidden',
     },
-    blobTop: {
+    glowTop: {
         position: 'absolute',
-        width: 260,
-        height: 260,
-        borderRadius: 130,
-        backgroundColor: '#cbe8fa',
+        width: 280,
+        height: 280,
+        borderRadius: 140,
+        backgroundColor: 'rgba(168, 85, 247, 0.05)',
         top: -90,
         left: -40,
     },
-    blobBottom: {
+    glowBottom: {
         position: 'absolute',
         width: 320,
         height: 320,
         borderRadius: 160,
-        backgroundColor: '#fee6bc',
+        backgroundColor: 'rgba(0, 229, 255, 0.04)',
         bottom: -120,
         right: -120,
     },
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     kicker: {
         fontSize: 11,
         letterSpacing: 1.6,
-        color: runSphereTheme.colors.inkMuted,
+        color: runSphereTheme.colors.secondary,
         fontWeight: '800',
     },
     logoText: {
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
         padding: 24,
         borderRadius: runSphereTheme.radius.lg,
         borderWidth: 1,
-        borderColor: runSphereTheme.colors.line,
+        borderColor: runSphereTheme.colors.glassBorder,
         ...runSphereTheme.shadow.card,
     },
     formTitle: {
@@ -165,21 +165,17 @@ const styles = StyleSheet.create({
         color: runSphereTheme.colors.ink,
     },
     primaryButton: {
-        backgroundColor: runSphereTheme.colors.accentStrong,
+        backgroundColor: runSphereTheme.colors.accent,
         paddingVertical: 16,
         borderRadius: runSphereTheme.radius.md,
         alignItems: 'center',
         marginTop: 8,
-        shadowColor: runSphereTheme.colors.accentStrong,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.26,
-        shadowRadius: 8,
-        elevation: 4,
+        ...runSphereTheme.shadow.accentButton,
     },
     primaryButtonText: {
-        color: '#ffffff',
+        color: '#0a0a1a',
         fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: '900',
     },
     footer: {
         flexDirection: 'row',
@@ -194,6 +190,6 @@ const styles = StyleSheet.create({
     footerLink: {
         fontSize: 15,
         fontWeight: '800',
-        color: runSphereTheme.colors.accentStrong,
+        color: runSphereTheme.colors.accent,
     }
 });

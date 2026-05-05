@@ -6,7 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js",
-    "db:init": "node src/scripts/initDb.js"
+    "db:init": "node src/scripts/initDb.js",
+    "db:seed": "node src/scripts/seedTestData.js",
+    "simulate:run": "node src/scripts/simulateRun.js"
   },
   "keywords": [],
   "author": "",

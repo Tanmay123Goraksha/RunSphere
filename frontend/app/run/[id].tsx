@@ -6,6 +6,7 @@ import MapView, { Polyline } from 'react-native-maps';
 import { fetchRunByIdApi } from '@/services/runApi';
 import { getLocalRunById, LocalRun } from '@/services/runStorage';
 import { runSphereTheme } from '@/constants/runSphereTheme';
+import { darkMapStyle } from '@/constants/darkMapStyle';
 
 type DisplayRun = {
     id: string;
@@ -46,53 +47,29 @@ export default function RunDetailScreen() {
     useEffect(() => {
         const load = async () => {
             if (!runId) return;
-
             const local = await getLocalRunById(runId);
-            if (local) {
-                setRun(fromLocal(local));
-            }
-
+            if (local) setRun(fromLocal(local));
             try {
                 const remote = await fetchRunByIdApi(runId);
                 setRun({
-                    id: remote.id,
-                    startedAt: remote.started_at,
+                    id: remote.id, startedAt: remote.started_at,
                     endedAt: remote.ended_at || undefined,
                     distanceKm: Number(remote.distance_km) || 0,
                     durationSeconds: Number(remote.duration_seconds) || 0,
                     avgPace: remote.avg_pace !== null ? Number(remote.avg_pace) : null,
                     cadenceSpm: null,
-                    points: remote.points.map((point) => ({
-                        latitude: Number(point.latitude),
-                        longitude: Number(point.longitude),
-                    })),
+                    points: remote.points.map((point) => ({ latitude: Number(point.latitude), longitude: Number(point.longitude) })),
                 });
-            } catch {
-                // Keep local details if API request fails.
-            }
+            } catch { /* Keep local details if API request fails */ }
         };
-
-        load().catch(() => {
-            // Keep best-known run state.
-        });
+        load().catch(() => {});
     }, [runId]);
 
     const initialRegion = useMemo(() => {
         if (!run || run.points.length === 0) {
-            return {
-                latitude: 18.5204,
-                longitude: 73.8567,
-                latitudeDelta: 0.05,
-                longitudeDelta: 0.05,
-            };
+            return { latitude: 18.9544, longitude: 72.8126, latitudeDelta: 0.05, longitudeDelta: 0.05 };
         }
-
-        return {
-            latitude: run.points[0].latitude,
-            longitude: run.points[0].longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-        };
+        return { latitude: run.points[0].latitude, longitude: run.points[0].longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
     }, [run]);
 
     if (!run) {
@@ -105,7 +82,6 @@ export default function RunDetailScreen() {
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <View style={styles.heroBubble} />
             <Text style={styles.title}>Run Details</Text>
             <Text style={styles.meta}>{new Date(run.startedAt).toLocaleString()}</Text>
 
@@ -131,8 +107,13 @@ export default function RunDetailScreen() {
             </View>
 
             <View style={styles.mapWrap}>
-                <MapView style={styles.map} initialRegion={initialRegion}>
-                    {run.points.length > 0 && <Polyline coordinates={run.points} strokeColor="#ef4444" strokeWidth={5} />}
+                <MapView style={styles.map} initialRegion={initialRegion} customMapStyle={darkMapStyle} userInterfaceStyle="dark">
+                    {run.points.length > 0 && (
+                        <>
+                            <Polyline coordinates={run.points} strokeColor={runSphereTheme.colors.runPathGlow} strokeWidth={10} />
+                            <Polyline coordinates={run.points} strokeColor={runSphereTheme.colors.runPath} strokeWidth={4} />
+                        </>
+                    )}
                 </MapView>
             </View>
         </ScrollView>
@@ -140,25 +121,8 @@ export default function RunDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: runSphereTheme.colors.background,
-    },
-    content: {
-        paddingTop: 60,
-        paddingHorizontal: 16,
-        paddingBottom: 24,
-        overflow: 'hidden',
-    },
-    heroBubble: {
-        position: 'absolute',
-        width: 260,
-        height: 260,
-        borderRadius: 130,
-        right: -100,
-        top: -80,
-        backgroundColor: '#cdebc4',
-    },
+    container: { flex: 1, backgroundColor: runSphereTheme.colors.background },
+    content: { paddingTop: 20, paddingHorizontal: 16, paddingBottom: 24 },
     title: {
         fontSize: 34,
         color: runSphereTheme.colors.ink,
@@ -181,14 +145,11 @@ const styles = StyleSheet.create({
         backgroundColor: runSphereTheme.colors.surface,
         borderRadius: runSphereTheme.radius.md,
         borderWidth: 1,
-        borderColor: runSphereTheme.colors.line,
+        borderColor: runSphereTheme.colors.glassBorder,
         padding: 12,
         ...runSphereTheme.shadow.card,
     },
-    metricLabel: {
-        color: runSphereTheme.colors.inkMuted,
-        fontWeight: '700',
-    },
+    metricLabel: { color: runSphereTheme.colors.inkMuted, fontWeight: '700' },
     metricValue: {
         marginTop: 4,
         color: runSphereTheme.colors.ink,
@@ -201,19 +162,14 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         height: 340,
         borderWidth: 1,
-        borderColor: runSphereTheme.colors.line,
+        borderColor: runSphereTheme.colors.glassBorder,
     },
-    map: {
-        flex: 1,
-    },
+    map: { flex: 1 },
     emptyContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: runSphereTheme.colors.background,
     },
-    emptyText: {
-        color: runSphereTheme.colors.inkMuted,
-        fontWeight: '700',
-    },
+    emptyText: { color: runSphereTheme.colors.inkMuted, fontWeight: '700' },
 });

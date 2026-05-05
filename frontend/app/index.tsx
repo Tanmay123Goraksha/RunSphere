@@ -20,7 +20,6 @@ export default function LoginScreen() {
 
     const handleLogin = async () => {
         try {
-            // Use 10.0.2.2 for Android emulator pointing to local host
             const response = await fetch('http://10.0.2.2:5000/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -47,8 +46,9 @@ export default function LoginScreen() {
             style={styles.keyboardView}
         >
             <View style={styles.container}>
-                <View style={styles.blobTop} />
-                <View style={styles.blobBottom} />
+                {/* Decorative glow circles */}
+                <View style={styles.glowTop} />
+                <View style={styles.glowBottom} />
 
                 <View style={styles.headerContainer}>
                     <Text style={styles.kicker}>TERRITORY RUNNING</Text>
@@ -61,7 +61,7 @@ export default function LoginScreen() {
                     <TextInput
                         style={styles.input}
                         placeholder="Email"
-                        placeholderTextColor="#6f7d70"
+                        placeholderTextColor={runSphereTheme.colors.inkSubtle}
                         value={email}
                         onChangeText={setEmail}
                         autoCapitalize="none"
@@ -70,7 +70,7 @@ export default function LoginScreen() {
                     <TextInput
                         style={styles.input}
                         placeholder="Password"
-                        placeholderTextColor="#6f7d70"
+                        placeholderTextColor={runSphereTheme.colors.inkSubtle}
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry
@@ -103,23 +103,23 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         overflow: 'hidden',
     },
-    blobTop: {
-        position: 'absolute',
-        width: 280,
-        height: 280,
-        borderRadius: 140,
-        backgroundColor: '#c7f0cf',
-        top: -80,
-        right: -40,
-    },
-    blobBottom: {
+    glowTop: {
         position: 'absolute',
         width: 300,
         height: 300,
         borderRadius: 150,
-        backgroundColor: '#fee6bc',
-        bottom: -120,
-        left: -100,
+        backgroundColor: 'rgba(0, 229, 255, 0.04)',
+        top: -100,
+        right: -60,
+    },
+    glowBottom: {
+        position: 'absolute',
+        width: 350,
+        height: 350,
+        borderRadius: 175,
+        backgroundColor: 'rgba(168, 85, 247, 0.04)',
+        bottom: -140,
+        left: -120,
     },
     headerContainer: {
         alignItems: 'center',
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     kicker: {
         fontSize: 11,
         letterSpacing: 1.4,
-        color: runSphereTheme.colors.inkMuted,
+        color: runSphereTheme.colors.accent,
         fontWeight: '800',
     },
     logoText: {
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
         padding: 24,
         borderRadius: runSphereTheme.radius.lg,
         borderWidth: 1,
-        borderColor: runSphereTheme.colors.line,
+        borderColor: runSphereTheme.colors.glassBorder,
         ...runSphereTheme.shadow.card,
     },
     formTitle: {
@@ -169,21 +169,17 @@ const styles = StyleSheet.create({
         color: runSphereTheme.colors.ink,
     },
     primaryButton: {
-        backgroundColor: runSphereTheme.colors.accentStrong,
+        backgroundColor: runSphereTheme.colors.accent,
         paddingVertical: 16,
         borderRadius: runSphereTheme.radius.md,
         alignItems: 'center',
         marginTop: 8,
-        shadowColor: runSphereTheme.colors.accentStrong,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.26,
-        shadowRadius: 8,
-        elevation: 4,
+        ...runSphereTheme.shadow.accentButton,
     },
     primaryButtonText: {
-        color: '#ffffff',
+        color: '#0a0a1a',
         fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: '900',
     },
     footer: {
         flexDirection: 'row',
@@ -198,6 +194,6 @@ const styles = StyleSheet.create({
     footerLink: {
         fontSize: 15,
         fontWeight: '800',
-        color: runSphereTheme.colors.accentStrong,
+        color: runSphereTheme.colors.accent,
     }
 });
