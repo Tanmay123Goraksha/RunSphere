@@ -2,10 +2,10 @@
   "dependencies": {
     "expo-location": "~55.1.4",
     "expo-sensors": "~55.0.9",
+    "react-dom": "19.2.0",
     "react-native-maps": "1.27.2",
+    "react-native-web": "^0.21.0",
     "redis": "^5.11.0"
   },
-  "devDependencies": {
-    "@types/react-native-maps": "^0.24.1"
-  }
+  "devDependencies": {}
 }
